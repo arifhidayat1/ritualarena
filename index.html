@@ -1248,30 +1248,25 @@ async function submitScoreOnChain() {
   statusEl.textContent = '⏳ Buka wallet kamu dan tanda tangani transaksi...';
 
   try {
-    // Buat provider dan signer dari wallet yang terhubung
-    const provider = new ethers.providers.Web3Provider(wallet.provider);
-    const signer = provider.getSigner();
+    // MetaMask untuk sign; RPC Ritual untuk gasPrice
+    const mmProvider = new ethers.providers.Web3Provider(wallet.provider);
+    const signer = mmProvider.getSigner();
 
-    // Buat instance contract
+    // Ambil gasPrice langsung dari RPC Ritual (bypass MetaMask yang return 0)
+    let gasPrice = ethers.utils.parseUnits('1', 'gwei'); // default 1 gwei
+    try {
+      const ritualRpc = new ethers.providers.JsonRpcProvider('https://rpc.ritualfoundation.org');
+      const feeData = await ritualRpc.getFeeData();
+      const raw = feeData.gasPrice || feeData.maxFeePerGas;
+      if (raw && raw.gt(gasPrice)) gasPrice = raw;
+    } catch(_) { /* pakai default 1 gwei */ }
+
     const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
     statusEl.textContent = '⏳ Mengirim transaksi ke Ritual Chain...';
     btn.innerHTML = '<span class="spinner"></span>Mengirim...';
 
-    // ---- FIX: fetch gasPrice dari RPC lalu set manual ----
-    // Ritual Chain kadang meleset saat MetaMask auto-estimasi gas
-    let overrides = { gasLimit: 300000 };
-    try {
-      const feeData = await provider.getFeeData();
-      // Pakai gasPrice dari chain, minimal 1 gwei supaya tidak 0
-      const minGas = ethers.utils.parseUnits('1', 'gwei');
-      const chainGas = feeData.gasPrice || feeData.maxFeePerGas || minGas;
-      overrides.gasPrice = chainGas.lt(minGas) ? minGas : chainGas;
-    } catch(_) {
-      overrides.gasPrice = ethers.utils.parseUnits('1', 'gwei');
-    }
-
-    // Cast tipe eksplisit agar tidak revert di Solidity
+    // Cast tipe eksplisit agar tidak revert
     const scoreBN  = ethers.BigNumber.from(Math.floor(score));
     const xpBN     = ethers.BigNumber.from(Math.floor(S.totalXP));
     const winsBN   = ethers.BigNumber.from(Math.floor(totalWins));
@@ -1279,12 +1274,8 @@ async function submitScoreOnChain() {
     const charName = String(p.name).slice(0, 32);
 
     const tx = await contract.submitScore(
-      scoreBN,
-      xpBN,
-      winsBN,
-      levelU8,
-      charName,
-      overrides
+      scoreBN, xpBN, winsBN, levelU8, charName,
+      { gasLimit: 300000, gasPrice: gasPrice }
     );
 
     statusEl.textContent = '⏳ Menunggu konfirmasi block...';
