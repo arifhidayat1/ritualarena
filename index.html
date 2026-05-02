@@ -161,7 +161,26 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0e17;color:#fffff
 .menu-hero h2{font-size:26px;font-weight:700;background:linear-gradient(135deg,#7F77DD,#5DCAA5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .menu-hero p{font-size:13px;color:#a8a0d0;margin-top:5px}
 
-/* TOAST */
+/* LEADERBOARD */
+.lb-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);margin-bottom:8px;transition:background 0.2s}
+.lb-row:hover{background:rgba(255,255,255,0.06)}
+.lb-row.me{border-color:rgba(127,119,221,0.4);background:rgba(127,119,221,0.1)}
+.lb-rank{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:rgba(255,255,255,0.08)}
+.lb-rank.gold{background:linear-gradient(135deg,#EF9F27,#F5C842);color:#000}
+.lb-rank.silver{background:linear-gradient(135deg,#9EA3B0,#C8CDD6);color:#000}
+.lb-rank.bronze{background:linear-gradient(135deg,#CD7F32,#E8A96A);color:#000}
+.lb-info{flex:1;min-width:0}
+.lb-addr{font-family:'Courier New',monospace;font-size:12px;color:#fff;font-weight:600}
+.lb-meta{font-size:11px;color:#a8a0d0;margin-top:2px}
+.lb-score{font-size:16px;font-weight:700;color:#5DCAA5;flex-shrink:0}
+.lb-char{font-size:18px;flex-shrink:0}
+
+/* SUBMIT STATUS */
+.submit-pending{color:#EF9F27}
+.submit-ok{color:#5DCAA5}
+.submit-fail{color:#f09595}
+
+
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1040;border:1px solid rgba(127,119,221,0.5);color:#fff;padding:12px 22px;border-radius:12px;font-size:14px;font-weight:500;z-index:9999;animation:toastIn 0.3s ease;pointer-events:none;white-space:nowrap}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
@@ -224,6 +243,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0e17;color:#fffff
           <div class="wsub">Browser extension — paling cepat</div>
         </div>
         <span id="mm-status" style="font-size:11px;color:#5DCAA5;margin-left:auto"></span>
+      </button>
+
+      <!-- Rabby Wallet -->
+      <button class="wallet-btn" id="btn-rabby" onclick="connectRabby()">
+        <div class="wicon" style="background:linear-gradient(135deg,#8697FF,#5B6EE8)">🐰</div>
+        <div class="wdetail">
+          <div class="wname">Rabby Wallet</div>
+          <div class="wsub">Browser extension — multi-chain friendly</div>
+        </div>
+        <span id="rabby-status" style="font-size:11px;color:#5DCAA5;margin-left:auto"></span>
       </button>
 
       <!-- WalletConnect -->
@@ -296,6 +325,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0e17;color:#fffff
     <div id="char-list"></div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="startGame()">⚔️ Mulai Petualangan</button>
+      <button class="btn" onclick="loadLeaderboard();document.getElementById('btn-back-vic').style.display='none';showScreen('leaderboard')">🏅 Leaderboard</button>
     </div>
   </div>
 </div>
@@ -371,14 +401,62 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0e17;color:#fffff
       <div style="font-size:11px;font-weight:600;color:#a8a0d0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Reward On-Chain</div>
       <div class="rr"><span>RITUAL Token</span><span class="rv g" id="vic-ritual">+0</span></div>
       <div class="rr"><span>XP Gained</span><span class="rv g" id="vic-xp">+0</span></div>
+      <div class="rr"><span>Total Score</span><span class="rv g" id="vic-score">0</span></div>
       <div class="rr"><span>Wallet</span><span class="rv" id="vic-wallet">—</span></div>
       <div class="rr"><span>TX Hash</span><span class="rv" id="vic-tx">0x...</span></div>
       <div class="rr"><span>Block</span><span class="rv" id="vic-block">#—</span></div>
     </div>
-    <div class="btn-row" style="justify-content:center;margin-top:18px">
+    <!-- Submit Score -->
+    <div id="submit-score-box" style="margin-top:14px;padding:14px;background:rgba(127,119,221,0.1);border:1px solid rgba(127,119,221,0.3);border-radius:12px">
+      <div style="font-size:13px;font-weight:600;color:#b0a8f0;margin-bottom:10px">📡 Submit Score ke Blockchain</div>
+      <div id="submit-status" style="font-size:12px;color:#a8a0d0;margin-bottom:10px">Score kamu bisa masuk leaderboard on-chain!</div>
+      <button class="btn btn-primary" id="btn-submit" onclick="submitScore()" style="width:100%">
+        🚀 Submit Score ke Ritual Chain
+      </button>
+    </div>
+    <div class="btn-row" style="justify-content:center;margin-top:16px">
       <button class="btn btn-primary" onclick="nextBattle()">⚔️ Battle Lagi</button>
+      <button class="btn" onclick="showLeaderboard()">🏅 Leaderboard</button>
       <button class="btn" onclick="goMenu()">🏠 Menu</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: LEADERBOARD ===== -->
+<div id="screen-leaderboard" class="screen">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:20px;font-weight:700">🏅 Leaderboard</div>
+        <div style="font-size:12px;color:#a8a0d0;margin-top:2px">Score on-chain · Ritual Testnet</div>
+      </div>
+      <button class="btn" onclick="loadLeaderboard();showToast('🔄 Refresh...')">🔄 Refresh</button>
+    </div>
+    <!-- My Score -->
+    <div id="my-score-box" style="display:none;background:rgba(127,119,221,0.15);border:1px solid rgba(127,119,221,0.35);border-radius:12px;padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;color:#a8a0d0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Score Kamu</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:16px;font-weight:700" id="my-score-val">—</div>
+          <div class="mono" style="margin-top:4px" id="my-score-addr">—</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;color:#5DCAA5" id="my-score-rank">—</div>
+          <div style="font-size:11px;color:#a8a0d0;margin-top:2px" id="my-score-char">—</div>
+        </div>
+      </div>
+    </div>
+    <!-- Leaderboard table -->
+    <div id="lb-list">
+      <div style="text-align:center;padding:30px;color:#555">
+        <div style="font-size:32px;margin-bottom:8px">📊</div>
+        Memuat leaderboard...
+      </div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="goMenu()">🏠 Menu Utama</button>
+    <button class="btn" onclick="showScreen('victory')" id="btn-back-vic" style="display:none">← Kembali</button>
   </div>
 </div>
 
@@ -449,8 +527,43 @@ async function connectMetaMask() {
 }
 
 // ============================================================
-// WALLETCONNECT v2
+// RABBY WALLET
 // ============================================================
+async function connectRabby() {
+  // Rabby menggunakan window.ethereum seperti MetaMask
+  // tapi inject property isRabby = true
+  const provider = window.rabby || window.ethereum;
+  if (typeof provider === 'undefined') {
+    showToast('❌ Rabby Wallet tidak ditemukan! Install dulu.');
+    setTimeout(() => window.open('https://rabby.io/', '_blank'), 1200);
+    return;
+  }
+  // Cek apakah ini benar-benar Rabby
+  const isRabby = provider.isRabby || (window.rabby !== undefined);
+  if (!isRabby && provider.isMetaMask) {
+    showToast('⚠️ Terdeteksi MetaMask, bukan Rabby. Pastikan Rabby aktif.');
+  }
+  const btn = document.getElementById('btn-rabby');
+  btn.disabled = true;
+  btn.querySelector('.wname').innerHTML = '<span class="spinner"></span>Menghubungkan...';
+  try {
+    const accounts = await provider.request({ method: 'eth_requestAccounts' });
+    if (!accounts.length) { showToast('❌ Tidak ada akun dipilih'); resetBtn(btn, 'Rabby Wallet'); return; }
+    wallet.address = accounts[0];
+    wallet.connected = true;
+    wallet.isDemo = false;
+    wallet.provider = provider;
+    wallet.chainId = await provider.request({ method: 'eth_chainId' });
+    resetBtn(btn, 'Rabby Wallet');
+    onConnected();
+  } catch (e) {
+    resetBtn(btn, 'Rabby Wallet');
+    if (e.code === 4001) showToast('❌ Ditolak pengguna');
+    else showToast('❌ Error: ' + e.message);
+  }
+}
+
+
 async function connectWalletConnect() {
   // Cek apakah library berhasil dimuat
   if (typeof window.EthereumProvider === 'undefined' && typeof window.WalletConnectProvider === 'undefined') {
@@ -681,15 +794,26 @@ function showScreen(id) {
   document.getElementById('screen-' + id).classList.add('active');
 }
 
-// Cek MetaMask tersedia saat load
+// Cek wallet tersedia saat load
 window.addEventListener('load', () => {
-  if (typeof window.ethereum !== 'undefined') {
+  // MetaMask
+  if (typeof window.ethereum !== 'undefined' && !window.ethereum.isRabby) {
     document.getElementById('mm-status').textContent = '✓ Terdeteksi';
     document.getElementById('mm-status').style.color = '#5DCAA5';
   } else {
     document.getElementById('mm-status').textContent = 'Tidak ada';
     document.getElementById('mm-status').style.color = '#f09595';
   }
+  // Rabby
+  const rabbyEl = document.getElementById('rabby-status');
+  if (window.rabby || (window.ethereum && window.ethereum.isRabby)) {
+    rabbyEl.textContent = '✓ Terdeteksi';
+    rabbyEl.style.color = '#5DCAA5';
+  } else {
+    rabbyEl.textContent = 'Tidak ada';
+    rabbyEl.style.color = '#f09595';
+  }
+  loadLeaderboard();
 });
 
 // ============================================================
@@ -710,7 +834,7 @@ const CHARS = [
     {id:'s3',name:'Epoch Regen',desc:'Pulih besar setiap epoch',heal:50,mpCost:20,type:'heal'},
     {id:'s4',name:'Finality Strike',desc:'Pasti kena, tidak meleset',dmg:38,mpCost:28,type:'sure'}
   ]},
-  {id:'mage',name:'Dev Mage',cls:'Smart Contract Caster',hp:95,maxhp:95,mp:130,maxmp:130,atk:15,def:5,healPow:20,icon:'🧙',
+  {id:'mage',name:'Dev Mage',cls:'Smart Contract Caster',hp:95,maxhp:95,mp:130,maxmp:130,atk:29,def:5,healPow:20,icon:'🧙',
    skills:[
     {id:'s1',name:'Deploy Contract',desc:'Lempar smart contract sebagai bom',dmg:22,mpCost:10,type:'dmg'},
     {id:'s2',name:'Reentrancy Bug',desc:'Eksploitasi celah — damage besar',dmg:65,mpCost:40,type:'dmg'},
@@ -893,15 +1017,25 @@ function confirmFlee(){
 
 function victory(){
   const e=S.enemy,p=S.char;S.ritualBal+=e.reward;p.xp+=e.xp;
+  totalWins++;
   document.getElementById('ritual-bal').textContent=S.ritualBal+' RITUAL';
   let lu=false;
   while(p.xp>=p.xpNext){p.xp-=p.xpNext;p.level++;p.xpNext=Math.floor(p.xpNext*1.4);p.maxhp=Math.floor(p.maxhp*1.1);p.hp=p.maxhp;p.maxmp=Math.floor(p.maxmp*1.1);p.mp=p.maxmp;p.atk+=3;p.def+=2;p.healPow+=5;lu=true;}
   document.getElementById('vic-msg').textContent=e.name+' dikalahkan!'+(lu?' 🎉 Level '+p.level+'!':'');
   document.getElementById('vic-ritual').textContent='+'+e.reward+' RITUAL';
   document.getElementById('vic-xp').textContent='+'+e.xp+' XP';
+  const score = calcScore(S.ritualBal, p.level, totalWins);
+  document.getElementById('vic-score').textContent=score.toLocaleString()+' pts';
   document.getElementById('vic-wallet').textContent=wallet.address?wallet.address.slice(0,6)+'...'+wallet.address.slice(-4):'—';
   document.getElementById('vic-tx').textContent=fakeTx();
   document.getElementById('vic-block').textContent=fakeBlock();
+  // Reset submit button
+  const btn=document.getElementById('btn-submit');
+  btn.disabled=false;btn.innerHTML='🚀 Submit Score ke Ritual Chain';
+  document.getElementById('submit-status').className='';
+  document.getElementById('submit-status').textContent='Score kamu bisa masuk leaderboard on-chain!';
+  // Sembunyikan submit jika demo
+  document.getElementById('submit-score-box').style.opacity=wallet.isDemo?'0.6':'1';
   showScreen('victory');
 }
 
@@ -927,6 +1061,152 @@ function switchTab(name,el){
 }
 
 renderCharList();
+ (localStorage sebagai simulasi on-chain)
+// ============================================================
+// Struktur score: { address, score, char, level, wins, timestamp, txHash }
+const LB_KEY = 'ritual_arena_leaderboard';
+let currentScore = 0;
+let totalWins = 0;
+
+function getLeaderboard() {
+  try { return JSON.parse(localStorage.getItem(LB_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function saveLeaderboard(data) {
+  localStorage.setItem(LB_KEY, JSON.stringify(data));
+}
+
+function calcScore(ritualBal, level, wins) {
+  return (ritualBal * 10) + (level * 500) + (wins * 200);
+}
+
+async function submitScore() {
+  if (!wallet.connected) { showToast('❌ Hubungkan wallet dulu!'); return; }
+  const btn = document.getElementById('btn-submit');
+  const statusEl = document.getElementById('submit-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Mengirim ke blockchain...';
+  statusEl.className = 'submit-pending';
+  statusEl.textContent = '⏳ Simulasi transaksi on-chain...';
+
+  // Simulasi delay transaksi
+  await new Promise(r => setTimeout(r, 1800));
+
+  try {
+    const lb = getLeaderboard();
+    const addr = wallet.address;
+    const score = calcScore(S.ritualBal, S.char.level, totalWins);
+    const txHash = fakeTx();
+    const block = fakeBlock();
+    const entry = {
+      address: addr,
+      score,
+      char: S.char.name,
+      charIcon: S.char.icon,
+      level: S.char.level,
+      wins: totalWins,
+      ritualBal: S.ritualBal,
+      timestamp: Date.now(),
+      txHash,
+      block,
+      isDemo: wallet.isDemo
+    };
+
+    // Update atau tambah entry
+    const idx = lb.findIndex(x => x.address.toLowerCase() === addr.toLowerCase());
+    if (idx >= 0) {
+      if (score > lb[idx].score) { lb[idx] = entry; }
+      else {
+        statusEl.className = 'submit-fail';
+        statusEl.textContent = '⚠️ Score lama kamu lebih tinggi (' + lb[idx].score.toLocaleString() + ') — tidak diupdate.';
+        btn.disabled = false;
+        btn.innerHTML = '✓ Score sudah ada';
+        return;
+      }
+    } else {
+      lb.push(entry);
+    }
+    lb.sort((a,b) => b.score - a.score);
+    saveLeaderboard(lb);
+
+    const rank = lb.findIndex(x => x.address.toLowerCase() === addr.toLowerCase()) + 1;
+    statusEl.className = 'submit-ok';
+    statusEl.innerHTML = `✅ Score terkirim! TX: <span style="font-family:monospace;font-size:10px">${txHash}</span><br>🏅 Kamu di posisi #${rank}`;
+    btn.innerHTML = '✅ Score Tersimpan!';
+    showToast('✅ Score berhasil submit ke Ritual Chain!');
+    document.getElementById('vic-score').textContent = score.toLocaleString();
+  } catch(e) {
+    statusEl.className = 'submit-fail';
+    statusEl.textContent = '❌ Gagal submit: ' + e.message;
+    btn.disabled = false;
+    btn.innerHTML = '🚀 Coba Lagi';
+  }
+}
+
+function showLeaderboard() {
+  loadLeaderboard();
+  document.getElementById('btn-back-vic').style.display = 'block';
+  showScreen('leaderboard');
+}
+
+function loadLeaderboard() {
+  const lb = getLeaderboard();
+  const lbEl = document.getElementById('lb-list');
+  const myAddr = wallet.address ? wallet.address.toLowerCase() : null;
+
+  // My score box
+  if (myAddr) {
+    const myEntry = lb.find(x => x.address.toLowerCase() === myAddr);
+    const myBox = document.getElementById('my-score-box');
+    if (myEntry) {
+      myBox.style.display = 'block';
+      document.getElementById('my-score-val').textContent = myEntry.score.toLocaleString() + ' pts';
+      document.getElementById('my-score-addr').textContent = myEntry.address.slice(0,6)+'...'+myEntry.address.slice(-4);
+      const rank = lb.findIndex(x => x.address.toLowerCase() === myAddr) + 1;
+      document.getElementById('my-score-rank').textContent = '#' + rank + ' dari ' + lb.length;
+      document.getElementById('my-score-char').textContent = myEntry.charIcon + ' ' + myEntry.char + ' Lv' + myEntry.level;
+    } else {
+      myBox.style.display = 'none';
+    }
+  }
+
+  if (!lb.length) {
+    lbEl.innerHTML = `<div style="text-align:center;padding:30px;color:#555">
+      <div style="font-size:32px;margin-bottom:8px">📭</div>
+      <div>Belum ada score — jadilah yang pertama!</div>
+      <div style="font-size:12px;margin-top:6px">Mainkan game dan submit score kamu</div>
+    </div>`;
+    return;
+  }
+
+  lbEl.innerHTML = lb.slice(0, 20).map((e, i) => {
+    const rank = i + 1;
+    const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+    const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+    const isMe = myAddr && e.address.toLowerCase() === myAddr;
+    const ago = timeAgo(e.timestamp);
+    const demoTag = e.isDemo ? ' <span style="color:#EF9F27;font-size:10px">[Demo]</span>' : '';
+    return `<div class="lb-row ${isMe?'me':''}">
+      <div class="lb-rank ${rankClass}">${rankLabel}</div>
+      <div class="lb-char">${e.charIcon}</div>
+      <div class="lb-info">
+        <div class="lb-addr">${e.address.slice(0,6)}...${e.address.slice(-4)}${isMe?'<span style="color:#7F77DD;margin-left:6px;font-size:10px">← Kamu</span>':''}${demoTag}</div>
+        <div class="lb-meta">${e.char} Lv${e.level} · ${e.wins} menang · ${ago}</div>
+      </div>
+      <div class="lb-score">${e.score.toLocaleString()}</div>
+    </div>`;
+  }).join('');
+}
+
+function timeAgo(ts) {
+  const sec = Math.floor((Date.now() - ts) / 1000);
+  if (sec < 60) return 'baru saja';
+  if (sec < 3600) return Math.floor(sec/60) + ' menit lalu';
+  if (sec < 86400) return Math.floor(sec/3600) + ' jam lalu';
+  return Math.floor(sec/86400) + ' hari lalu';
+}
+
+
 </script>
 </body>
 </html>
