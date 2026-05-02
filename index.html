@@ -1,1 +1,932 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ritual Arena - Testnet Game</title>
+
+<!-- WalletConnect Web3Modal v2 + Ethers via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.0/dist/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0e17;color:#fffffe;min-height:100vh}
+.bg{background:linear-gradient(135deg,#0f0e17 0%,#1a1040 50%,#0f0e17 100%);min-height:100vh;padding:20px}
+.container{max-width:700px;margin:0 auto}
+
+.header{display:flex;align-items:center;gap:14px;margin-bottom:18px;padding:14px 18px;background:rgba(127,119,221,0.12);border:1px solid rgba(127,119,221,0.3);border-radius:16px;flex-wrap:wrap}
+.logo{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#7F77DD,#534AB7);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0}
+.header h1{font-size:18px;font-weight:700}
+.header p{font-size:12px;color:#a8a0d0;margin-top:2px}
+.badge{background:rgba(127,119,221,0.3);color:#b0a8f0;font-size:11px;padding:2px 9px;border-radius:20px;border:1px solid rgba(127,119,221,0.4)}
+.chain-status{margin-left:auto;text-align:right;flex-shrink:0}
+.dot-wrap{display:flex;align-items:center;gap:5px;font-size:12px;color:#5DCAA5;justify-content:flex-end}
+.dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;animation:blink 2s infinite}
+.dot.red{background:#E24B4A}
+.dot.yellow{background:#EF9F27}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.ritual-bal{font-size:13px;font-weight:700;color:#7F77DD;margin-top:3px}
+.mono{font-family:'Courier New',monospace;font-size:11px;background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:6px;color:#a8a0d0}
+
+/* CONNECT SCREEN */
+.wallet-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:72vh;text-align:center;padding:20px}
+.wallet-logo{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#7F77DD,#534AB7);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 20px;box-shadow:0 0 40px rgba(127,119,221,0.35)}
+.wallet-title{font-size:26px;font-weight:700;background:linear-gradient(135deg,#7F77DD,#5DCAA5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
+.wallet-sub{font-size:14px;color:#a8a0d0;margin-bottom:28px;line-height:1.7}
+.wallet-options{display:flex;flex-direction:column;gap:11px;width:100%;max-width:360px}
+.wallet-btn{display:flex;align-items:center;gap:14px;padding:15px 18px;border-radius:14px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);cursor:pointer;transition:all 0.2s;color:#fff;font-family:inherit;font-size:15px;font-weight:600;width:100%;text-align:left}
+.wallet-btn:hover:not(:disabled){background:rgba(127,119,221,0.2);border-color:rgba(127,119,221,0.5);transform:translateY(-2px)}
+.wallet-btn:active:not(:disabled){transform:scale(0.98)}
+.wallet-btn:disabled{opacity:0.5;cursor:not-allowed}
+.wicon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.wdetail{flex:1}
+.wname{font-size:14px;font-weight:600}
+.wsub{font-size:11px;color:#a8a0d0;font-weight:400;margin-top:2px}
+.wallet-divider{display:flex;align-items:center;gap:12px;color:#444;font-size:12px;width:100%;max-width:360px}
+.wallet-divider::before,.wallet-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.07)}
+
+/* QR MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:#1a1040;border:1px solid rgba(127,119,221,0.4);border-radius:20px;padding:28px;max-width:340px;width:90%;text-align:center}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:6px}
+.modal-sub{font-size:13px;color:#a8a0d0;margin-bottom:20px;line-height:1.6}
+#qr-container{background:#fff;border-radius:12px;padding:12px;display:inline-block;margin-bottom:16px}
+#qr-container canvas{display:block}
+.modal-uri{font-family:'Courier New',monospace;font-size:10px;background:rgba(0,0,0,0.4);border-radius:8px;padding:8px;color:#a8a0d0;word-break:break-all;margin-bottom:14px;text-align:left;max-height:60px;overflow-y:auto}
+.modal-close{border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;padding:9px 22px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500}
+.modal-close:hover{background:rgba(255,255,255,0.12)}
+
+/* WRONG NETWORK */
+.wrongnet-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:65vh;text-align:center;padding:20px}
+.net-info{background:rgba(0,0,0,0.25);border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,0.07);margin-bottom:18px;width:100%;max-width:380px;text-align:left}
+.net-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;color:#a8a0d0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.net-row:last-child{border-bottom:none}
+.net-val{font-weight:600;color:#fff;font-size:12px;font-family:monospace}
+
+/* STATUS BAR */
+.status-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:12px;margin-bottom:14px;font-size:13px;font-weight:600}
+.status-bar.connected{background:rgba(29,158,117,0.15);border:1px solid rgba(29,158,117,0.3);color:#5DCAA5}
+
+/* CARDS */
+.card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:18px;margin-bottom:12px}
+.card-title{font-size:11px;font-weight:600;color:#a8a0d0;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+
+.char-card{border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:13px;cursor:pointer;transition:all 0.2s;background:rgba(255,255,255,0.03);margin-bottom:9px;display:flex;align-items:center;gap:12px}
+.char-card:hover{background:rgba(127,119,221,0.15);border-color:rgba(127,119,221,0.4)}
+.char-card.selected{background:rgba(127,119,221,0.2);border-color:#7F77DD}
+.char-icon-box{width:42px;height:42px;border-radius:10px;background:rgba(127,119,221,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.char-name{font-size:14px;font-weight:600}
+.char-meta{font-size:11px;color:#a8a0d0;margin-top:3px}
+.sel-badge{margin-left:auto;background:#7F77DD;color:#fff;font-size:11px;padding:3px 10px;border-radius:20px;flex-shrink:0}
+
+.stat-row{display:flex;justify-content:space-between;font-size:12px;color:#a8a0d0;margin-bottom:4px}
+.stat-row span:last-child{font-weight:600;color:#fff}
+.bar{height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin-bottom:8px}
+.bar-fill{height:100%;border-radius:4px;transition:width 0.4s ease}
+.bar-hp{background:linear-gradient(90deg,#534AB7,#7F77DD)}
+.bar-mp{background:linear-gradient(90deg,#0F6E56,#1D9E75)}
+.bar-ene{background:linear-gradient(90deg,#A32D2D,#E24B4A)}
+.bar-xp{background:linear-gradient(90deg,#854F0B,#EF9F27)}
+.hero-name{font-size:20px;font-weight:700}
+.hero-cls{font-size:12px;color:#a8a0d0;margin-top:2px}
+.lvl-badge{display:inline-block;background:rgba(127,119,221,0.25);color:#b0a8f0;font-size:11px;padding:2px 9px;border-radius:20px;margin-top:5px}
+.divider{height:1px;background:rgba(255,255,255,0.07);margin:10px 0}
+.enemy-big{text-align:center;padding:6px 0 10px}
+.enemy-emoji{font-size:44px;margin-bottom:4px;display:block}
+.enemy-nm{font-size:17px;font-weight:700}
+.enemy-tp{font-size:12px;color:#a8a0d0;margin-top:2px}
+.shake{animation:shk 0.35s}
+@keyframes shk{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+
+.turn-banner{display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 16px;border-radius:12px;margin-bottom:12px;font-size:14px;font-weight:600;transition:all 0.3s}
+.turn-banner.player-turn{background:rgba(127,119,221,0.2);border:1px solid rgba(127,119,221,0.4);color:#b0a8f0}
+.turn-banner.enemy-turn{background:rgba(226,75,74,0.15);border:1px solid rgba(226,75,74,0.35);color:#f09595}
+.turn-dot{width:10px;height:10px;border-radius:50%}
+.turn-banner.player-turn .turn-dot{background:#7F77DD}
+.turn-banner.enemy-turn .turn-dot{background:#E24B4A;animation:blink 0.8s infinite}
+
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.action-btn{border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:#fff;padding:14px 12px;border-radius:14px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:inherit;text-align:center;line-height:1.4;width:100%}
+.action-btn:hover:not(:disabled){transform:translateY(-2px);border-color:rgba(255,255,255,0.3)}
+.action-btn:active:not(:disabled){transform:scale(0.97)}
+.action-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none}
+.action-btn .icon{font-size:22px;display:block;margin-bottom:5px}
+.action-btn .sub{font-size:11px;color:#a8a0d0;font-weight:400;margin-top:2px}
+.action-btn.atk{border-color:rgba(127,119,221,0.4);background:rgba(127,119,221,0.12)}
+.action-btn.atk:hover:not(:disabled){background:rgba(127,119,221,0.25)}
+.action-btn.def{border-color:rgba(29,158,117,0.4);background:rgba(29,158,117,0.1)}
+.action-btn.def:hover:not(:disabled){background:rgba(29,158,117,0.22)}
+.action-btn.heal-btn{border-color:rgba(93,202,165,0.4);background:rgba(93,202,165,0.1)}
+.action-btn.heal-btn:hover:not(:disabled){background:rgba(93,202,165,0.22)}
+.action-btn.flee{border-color:rgba(226,75,74,0.3);background:rgba(226,75,74,0.08)}
+.action-btn.flee:hover:not(:disabled){background:rgba(226,75,74,0.18)}
+.defending-badge{display:none;background:rgba(29,158,117,0.2);color:#5DCAA5;border:1px solid rgba(29,158,117,0.4);border-radius:8px;font-size:12px;padding:4px 10px;margin-top:6px;text-align:center}
+
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tab{padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid transparent;color:#a8a0d0;transition:all 0.2s;background:none;font-family:inherit}
+.tab.active{background:rgba(127,119,221,0.22);color:#b0a8f0;border-color:rgba(127,119,221,0.4)}
+.tab:hover:not(.active){background:rgba(255,255,255,0.06)}
+.skill-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.skill-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:11px;text-align:left;cursor:pointer;transition:all 0.2s;color:#fff;width:100%;font-family:inherit}
+.skill-btn:hover:not(:disabled){background:rgba(127,119,221,0.18);border-color:rgba(127,119,221,0.45)}
+.skill-btn:disabled{opacity:0.35;cursor:not-allowed}
+.sk-name{font-size:13px;font-weight:600}
+.sk-desc{font-size:11px;color:#a8a0d0;margin-top:3px;line-height:1.4}
+.sk-cost{font-size:11px;color:#7F77DD;margin-top:5px;font-weight:600}
+
+.log-box{background:rgba(0,0,0,0.3);border-radius:10px;padding:10px 12px;font-size:13px;min-height:110px;max-height:160px;overflow-y:auto;line-height:1.85;border:1px solid rgba(255,255,255,0.06)}
+.log-line{margin-bottom:1px}
+.log-hit{color:#b0a8f0}.log-crit{color:#5DCAA5;font-weight:600}.log-dmg{color:#f09595}.log-heal{color:#5DCAA5}.log-def{color:#1D9E75}.log-enemy{color:#f09595;font-weight:500}.log-sys{color:#555;font-style:italic}
+
+.btn{border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.07);color:#fff;padding:9px 18px;border-radius:10px;font-size:13px;cursor:pointer;transition:all 0.2s;font-family:inherit;font-weight:500}
+.btn:hover{background:rgba(255,255,255,0.13)}
+.btn:active{transform:scale(0.97)}
+.btn-primary{background:linear-gradient(135deg,#534AB7,#7F77DD);border-color:#7F77DD}
+.btn-primary:hover{background:linear-gradient(135deg,#7F77DD,#9490e8)}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+.screen{display:none}.screen.active{display:block}
+.big-icon{font-size:52px;text-align:center;margin-bottom:8px}
+.big-title{font-size:22px;font-weight:700;text-align:center;margin-bottom:5px}
+.big-sub{font-size:14px;color:#a8a0d0;text-align:center;margin-bottom:16px}
+.reward-box{background:rgba(0,0,0,0.3);border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,0.07)}
+.rr{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;color:#a8a0d0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.rr:last-child{border-bottom:none}
+.rv{font-weight:700;color:#fff;font-family:'Courier New',monospace;font-size:12px}
+.rv.g{color:#5DCAA5}
+.menu-hero{text-align:center;padding:18px 0 8px}
+.menu-hero h2{font-size:26px;font-weight:700;background:linear-gradient(135deg,#7F77DD,#5DCAA5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.menu-hero p{font-size:13px;color:#a8a0d0;margin-top:5px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1040;border:1px solid rgba(127,119,221,0.5);color:#fff;padding:12px 22px;border-radius:12px;font-size:14px;font-weight:500;z-index:9999;animation:toastIn 0.3s ease;pointer-events:none;white-space:nowrap}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* LOADING SPINNER */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);border-top-color:#7F77DD;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:rgba(0,0,0,0.2)}
+::-webkit-scrollbar-thumb{background:#534AB7;border-radius:2px}
+</style>
+</head>
+<body>
+<div class="bg">
+<div class="container">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">R</div>
+  <div>
+    <h1>Ritual Arena <span class="badge">Testnet</span></h1>
+    <p>Turn-Based AI Battle · Ritual Chain</p>
+  </div>
+  <div class="chain-status">
+    <div class="dot-wrap"><div class="dot red" id="hdr-dot"></div><span id="hdr-net">Tidak terhubung</span></div>
+    <div class="mono" id="hdr-wallet" style="margin-top:4px">—</div>
+    <div class="ritual-bal" id="ritual-bal" style="display:none">100 RITUAL</div>
+  </div>
+</div>
+
+<!-- ===== QR MODAL (WalletConnect) ===== -->
+<div class="modal-overlay" id="qr-modal">
+  <div class="modal-box">
+    <div class="modal-title">📱 Scan dengan Wallet Mobile</div>
+    <div class="modal-sub">Buka app wallet kamu (MetaMask Mobile, Trust Wallet, dll) lalu scan QR code ini</div>
+    <div id="qr-container"></div>
+    <div style="font-size:12px;color:#a8a0d0;margin-bottom:10px">Atau copy URI:</div>
+    <div class="modal-uri" id="wc-uri">Menghubungkan...</div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="modal-close" onclick="copyURI()">📋 Copy URI</button>
+      <button class="modal-close" onclick="closeQRModal()">✕ Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: CONNECT ===== -->
+<div id="screen-connect" class="screen active">
+  <div class="wallet-screen">
+    <div class="wallet-logo">🔮</div>
+    <div class="wallet-title">Ritual Arena</div>
+    <div class="wallet-sub">Hubungkan wallet untuk masuk ke arena<br>dan bertarung di Ritual Chain Testnet</div>
+
+    <div class="wallet-options">
+
+      <!-- MetaMask -->
+      <button class="wallet-btn" id="btn-metamask" onclick="connectMetaMask()">
+        <div class="wicon" style="background:#F6851B">🦊</div>
+        <div class="wdetail">
+          <div class="wname">MetaMask</div>
+          <div class="wsub">Browser extension — paling cepat</div>
+        </div>
+        <span id="mm-status" style="font-size:11px;color:#5DCAA5;margin-left:auto"></span>
+      </button>
+
+      <!-- WalletConnect -->
+      <button class="wallet-btn" id="btn-wc" onclick="connectWalletConnect()">
+        <div class="wicon" style="background:#3B99FC">🔗</div>
+        <div class="wdetail">
+          <div class="wname">WalletConnect</div>
+          <div class="wsub">Scan QR dengan wallet mobile</div>
+        </div>
+        <span id="wc-status" style="font-size:11px;color:#a8a0d0;margin-left:auto">v2</span>
+      </button>
+
+      <div class="wallet-divider">atau coba tanpa wallet</div>
+
+      <!-- Demo -->
+      <button class="wallet-btn" onclick="connectDemo()" style="border-color:rgba(127,119,221,0.35)">
+        <div class="wicon" style="background:rgba(127,119,221,0.3)">🎮</div>
+        <div class="wdetail">
+          <div class="wname">Mode Demo</div>
+          <div class="wsub">Simulasi — tanpa wallet</div>
+        </div>
+      </button>
+    </div>
+
+    <div style="margin-top:22px;font-size:12px;color:#444;max-width:300px;line-height:1.7;text-align:center">
+      Belum ada MetaMask?
+      <a href="https://metamask.io/download/" target="_blank" style="color:#7F77DD;text-decoration:none">Download di sini →</a>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: WRONG NETWORK ===== -->
+<div id="screen-wrongnet" class="screen">
+  <div class="wrongnet-screen">
+    <div style="font-size:52px;margin-bottom:16px">⛓️</div>
+    <div style="font-size:22px;font-weight:700;margin-bottom:8px">Jaringan Salah!</div>
+    <div style="font-size:14px;color:#a8a0d0;margin-bottom:24px;line-height:1.7">
+      Kamu perlu terhubung ke <strong style="color:#7F77DD">Ritual Chain Testnet</strong>
+    </div>
+    <div class="net-info">
+      <div style="font-size:11px;font-weight:600;color:#a8a0d0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Detail Ritual Testnet</div>
+      <div class="net-row"><span>Network Name</span><span class="net-val">Ritual Testnet</span></div>
+      <div class="net-row"><span>Chain ID</span><span class="net-val">1337</span></div>
+      <div class="net-row"><span>RPC URL</span><span class="net-val">testnet.rpc.ritual.net</span></div>
+      <div class="net-row"><span>Symbol</span><span class="net-val">RITUAL</span></div>
+      <div class="net-row"><span>Explorer</span><span class="net-val">explorer.testnet.ritual.net</span></div>
+    </div>
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn btn-primary" onclick="addRitualNetwork()">➕ Tambah Network Otomatis</button>
+      <button class="btn" onclick="disconnectWallet()">🔌 Ganti Wallet</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: MENU ===== -->
+<div id="screen-menu" class="screen">
+  <div class="status-bar connected">
+    <span>✅</span>
+    <span id="menu-addr">—</span>
+    <span style="margin-left:auto;font-size:12px;color:#a8a0d0" id="menu-net">Ritual Testnet</span>
+    <button onclick="disconnectWallet()" style="background:rgba(226,75,74,0.2);border:1px solid rgba(226,75,74,0.3);color:#f09595;padding:3px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:inherit;margin-left:8px">Keluar</button>
+  </div>
+  <div class="menu-hero">
+    <h2>Pilih Karakter</h2>
+    <p>Turn-based — Serang · Bertahan · Heal · Skills</p>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">Karakter tersedia</div>
+    <div id="char-list"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="startGame()">⚔️ Mulai Petualangan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: BATTLE ===== -->
+<div id="screen-battle" class="screen">
+  <div id="turn-banner" class="turn-banner player-turn">
+    <div class="turn-dot"></div>
+    <span id="turn-text">Giliran kamu!</span>
+  </div>
+  <div class="two-col">
+    <div class="card" id="player-card">
+      <div class="card-title">Karakter kamu</div>
+      <div class="hero-name" id="p-name">—</div>
+      <div class="hero-cls" id="p-class">—</div>
+      <span class="lvl-badge">Lv <span id="p-level">1</span></span>
+      <div id="def-badge" class="defending-badge">🛡️ Sedang Bertahan</div>
+      <div class="divider"></div>
+      <div class="stat-row"><span>❤️ HP</span><span id="p-hp-txt">—</span></div>
+      <div class="bar"><div class="bar-fill bar-hp" id="p-hp-bar" style="width:100%"></div></div>
+      <div class="stat-row"><span>💧 Mana</span><span id="p-mp-txt">—</span></div>
+      <div class="bar"><div class="bar-fill bar-mp" id="p-mp-bar" style="width:100%"></div></div>
+      <div class="stat-row" style="margin-top:4px"><span>✨ XP</span><span id="p-xp-txt">0/100</span></div>
+      <div class="bar"><div class="bar-fill bar-xp" id="p-xp-bar" style="width:0%"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Musuh</div>
+      <div class="enemy-big">
+        <span class="enemy-emoji" id="e-icon">🤖</span>
+        <div class="enemy-nm" id="e-name">—</div>
+        <div class="enemy-tp" id="e-type">—</div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-row"><span>❤️ HP</span><span id="e-hp-txt">—</span></div>
+      <div class="bar"><div class="bar-fill bar-ene" id="e-hp-bar" style="width:100%"></div></div>
+      <div style="font-size:12px;color:#5DCAA5;margin-top:8px;text-align:center" id="e-reward">—</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Pilih aksi</div>
+    <div class="action-grid">
+      <button class="action-btn atk" id="btn-atk" onclick="doAction('attack')">
+        <span class="icon">⚔️</span>Serang<div class="sub">Serangan biasa, tanpa mana</div>
+      </button>
+      <button class="action-btn def" id="btn-def" onclick="doAction('defend')">
+        <span class="icon">🛡️</span>Bertahan<div class="sub">Kurangi damage 60% giliran ini</div>
+      </button>
+      <button class="action-btn heal-btn" id="btn-heal" onclick="doAction('heal')">
+        <span class="icon">💊</span>Heal<div class="sub">Pulihkan <span id="heal-amt">—</span> HP · 20 Mana</div>
+      </button>
+      <button class="action-btn flee" id="btn-flee" onclick="confirmFlee()">
+        <span class="icon">🏃</span>Kabur<div class="sub">Ganti musuh, bayar 5 RITUAL</div>
+      </button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('skills',this)">⚡ Skills</button>
+      <button class="tab" onclick="switchTab('log',this)">📜 Battle Log</button>
+    </div>
+    <div id="tab-skills"><div class="skill-grid" id="skill-list"></div></div>
+    <div id="tab-log" style="display:none"><div class="log-box" id="battle-log"></div></div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: VICTORY ===== -->
+<div id="screen-victory" class="screen">
+  <div class="card" style="text-align:center;padding:28px">
+    <div class="big-icon">🏆</div>
+    <div class="big-title">Musuh Dikalahkan!</div>
+    <div class="big-sub" id="vic-msg">—</div>
+    <div class="reward-box">
+      <div style="font-size:11px;font-weight:600;color:#a8a0d0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Reward On-Chain</div>
+      <div class="rr"><span>RITUAL Token</span><span class="rv g" id="vic-ritual">+0</span></div>
+      <div class="rr"><span>XP Gained</span><span class="rv g" id="vic-xp">+0</span></div>
+      <div class="rr"><span>Wallet</span><span class="rv" id="vic-wallet">—</span></div>
+      <div class="rr"><span>TX Hash</span><span class="rv" id="vic-tx">0x...</span></div>
+      <div class="rr"><span>Block</span><span class="rv" id="vic-block">#—</span></div>
+    </div>
+    <div class="btn-row" style="justify-content:center;margin-top:18px">
+      <button class="btn btn-primary" onclick="nextBattle()">⚔️ Battle Lagi</button>
+      <button class="btn" onclick="goMenu()">🏠 Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: DEAD ===== -->
+<div id="screen-dead" class="screen">
+  <div class="card" style="text-align:center;padding:28px">
+    <div class="big-icon">💀</div>
+    <div class="big-title">Karakter Gugur!</div>
+    <div class="big-sub">Progress tersimpan di Ritual Testnet</div>
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn btn-primary" onclick="revive()">💊 Revive (10 RITUAL)</button>
+      <button class="btn" onclick="goMenu()">🏠 Menu</button>
+    </div>
+  </div>
+</div>
+
+</div></div>
+
+<script>
+// ============================================================
+// RITUAL CHAIN CONFIG
+// ============================================================
+const RITUAL_CHAIN_ID = '0x539'; // 1337
+const RITUAL_CHAIN_PARAMS = {
+  chainId: RITUAL_CHAIN_ID,
+  chainName: 'Ritual Testnet',
+  nativeCurrency: { name: 'RITUAL', symbol: 'RITUAL', decimals: 18 },
+  rpcUrls: ['https://testnet.rpc.ritual.net'],
+  blockExplorerUrls: ['https://explorer.testnet.ritual.net']
+};
+
+// WalletConnect Project ID — ganti dengan project ID kamu dari cloud.walletconnect.com
+const WC_PROJECT_ID = 'b56e18d47c72ab683b10814fe9495694';
+
+// ============================================================
+// WALLET STATE
+// ============================================================
+let wallet = { connected: false, address: null, chainId: null, isDemo: false, provider: null, wcProvider: null };
+let wcURIValue = '';
+
+// ============================================================
+// METAMASK
+// ============================================================
+async function connectMetaMask() {
+  if (typeof window.ethereum === 'undefined') {
+    showToast('❌ MetaMask tidak ditemukan! Install dulu.');
+    setTimeout(() => window.open('https://metamask.io/download/', '_blank'), 1200);
+    return;
+  }
+  const btn = document.getElementById('btn-metamask');
+  btn.disabled = true;
+  btn.querySelector('.wname').innerHTML = '<span class="spinner"></span>Menghubungkan...';
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    if (!accounts.length) { showToast('❌ Tidak ada akun dipilih'); resetBtn(btn, 'MetaMask'); return; }
+    wallet.address = accounts[0];
+    wallet.connected = true;
+    wallet.isDemo = false;
+    wallet.provider = window.ethereum;
+    wallet.chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    resetBtn(btn, 'MetaMask');
+    onConnected();
+  } catch (e) {
+    resetBtn(btn, 'MetaMask');
+    if (e.code === 4001) showToast('❌ Ditolak pengguna');
+    else showToast('❌ Error: ' + e.message);
+  }
+}
+
+// ============================================================
+// WALLETCONNECT v2
+// ============================================================
+async function connectWalletConnect() {
+  // Cek apakah library berhasil dimuat
+  if (typeof window.EthereumProvider === 'undefined' && typeof window.WalletConnectProvider === 'undefined') {
+    showToast('⏳ Library WalletConnect sedang dimuat, coba lagi...');
+    return;
+  }
+
+  const btn = document.getElementById('btn-wc');
+  btn.disabled = true;
+  btn.querySelector('.wname').innerHTML = '<span class="spinner"></span>Inisialisasi...';
+
+  try {
+    // Coba gunakan @walletconnect/ethereum-provider
+    const EthProvider = window.EthereumProvider || window.WalletConnectEthereumProvider;
+
+    const wcProvider = await EthProvider.init({
+      projectId: WC_PROJECT_ID,
+      chains: [1337],
+      optionalChains: [1, 137, 56],
+      showQrModal: false, // kita buat QR sendiri
+      metadata: {
+        name: 'Ritual Arena',
+        description: 'Turn-based game on Ritual Chain Testnet',
+        url: window.location.origin,
+        icons: ['https://avatars.githubusercontent.com/u/37784886']
+      }
+    });
+
+    // Tangkap URI untuk QR code
+    wcProvider.on('display_uri', (uri) => {
+      wcURIValue = uri;
+      showQRModal(uri);
+      btn.querySelector('.wname').innerHTML = 'WalletConnect';
+      btn.disabled = false;
+    });
+
+    // Saat session terhubung
+    wcProvider.on('connect', async () => {
+      closeQRModal();
+      const accounts = await wcProvider.request({ method: 'eth_accounts' });
+      wallet.address = accounts[0];
+      wallet.connected = true;
+      wallet.isDemo = false;
+      wallet.wcProvider = wcProvider;
+      wallet.chainId = '0x' + wcProvider.chainId.toString(16);
+      resetBtn(btn, 'WalletConnect');
+      onConnected();
+    });
+
+    wcProvider.on('disconnect', () => {
+      showToast('🔌 WalletConnect terputus');
+      disconnectWallet();
+    });
+
+    await wcProvider.connect();
+
+  } catch (e) {
+    resetBtn(btn, 'WalletConnect');
+    console.error('WC Error:', e);
+    // Fallback: tampilkan instruksi manual
+    showWCFallback();
+  }
+}
+
+function showWCFallback() {
+  document.getElementById('qr-container').innerHTML = `
+    <div style="padding:20px;color:#a8a0d0;font-size:13px;line-height:1.7">
+      <div style="font-size:24px;margin-bottom:10px">📱</div>
+      <b style="color:#fff">Cara manual WalletConnect:</b><br><br>
+      1. Buka wallet mobile kamu<br>
+      2. Pilih "Connect Wallet" atau scan QR<br>
+      3. Masukkan URL: <span style="color:#7F77DD">${window.location.href}</span><br><br>
+      <small>Atau gunakan MetaMask Extension / Mode Demo</small>
+    </div>`;
+  document.getElementById('qr-modal').classList.add('show');
+  document.getElementById('wc-uri').textContent = 'Gunakan MetaMask Extension untuk pengalaman terbaik.';
+}
+
+// ============================================================
+// QR CODE — menggunakan QRCode.js via CDN (lazy load)
+// ============================================================
+function showQRModal(uri) {
+  document.getElementById('wc-uri').textContent = uri;
+  document.getElementById('qr-modal').classList.add('show');
+
+  // Load QRCode.js jika belum ada
+  if (typeof QRCode === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+    script.onload = () => renderQR(uri);
+    document.head.appendChild(script);
+  } else {
+    renderQR(uri);
+  }
+}
+
+function renderQR(uri) {
+  const container = document.getElementById('qr-container');
+  container.innerHTML = '';
+  new QRCode(container, {
+    text: uri,
+    width: 220,
+    height: 220,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+}
+
+function closeQRModal() {
+  document.getElementById('qr-modal').classList.remove('show');
+}
+
+function copyURI() {
+  if (!wcURIValue) return;
+  navigator.clipboard.writeText(wcURIValue).then(() => showToast('✅ URI berhasil dicopy!'));
+}
+
+// ============================================================
+// DEMO MODE
+// ============================================================
+function connectDemo() {
+  wallet.address = '0xDEMO' + Math.random().toString(16).slice(2, 10).toUpperCase();
+  wallet.connected = true;
+  wallet.isDemo = true;
+  wallet.chainId = RITUAL_CHAIN_ID;
+  showToast('🎮 Mode Demo aktif!');
+  onConnected();
+}
+
+// ============================================================
+// SHARED CONNECT LOGIC
+// ============================================================
+function onConnected() {
+  updateHeader();
+  const isCorrectNet = wallet.isDemo || wallet.chainId === RITUAL_CHAIN_ID;
+  if (!isCorrectNet) {
+    showScreen('wrongnet');
+    setDot('yellow');
+    showToast('⚠️ Ganti ke Ritual Testnet!');
+  } else {
+    showScreen('menu');
+    setDot('green');
+    document.getElementById('ritual-bal').style.display = 'block';
+    showToast('✅ Wallet terhubung!' + (wallet.isDemo ? ' (Demo)' : ''));
+  }
+  // Setup MetaMask listeners
+  if (window.ethereum && !wallet.isDemo && !wallet.wcProvider) {
+    window.ethereum.on('accountsChanged', (a) => {
+      if (!a.length) { disconnectWallet(); return; }
+      wallet.address = a[0]; updateHeader(); showToast('🔄 Akun berganti');
+    });
+    window.ethereum.on('chainChanged', (id) => {
+      wallet.chainId = id; updateHeader();
+      if (id !== RITUAL_CHAIN_ID) { showScreen('wrongnet'); setDot('yellow'); showToast('⚠️ Jaringan berubah!'); }
+      else { showScreen('menu'); setDot('green'); showToast('✅ Kembali ke Ritual Testnet'); }
+    });
+  }
+}
+
+async function addRitualNetwork() {
+  if (wallet.isDemo || typeof window.ethereum === 'undefined') {
+    showToast('⚠️ Perlu MetaMask untuk menambah network');
+    return;
+  }
+  try {
+    await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [RITUAL_CHAIN_PARAMS] });
+    showToast('✅ Ritual Testnet ditambahkan!');
+    wallet.chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    onConnected();
+  } catch (e) {
+    showToast('❌ Gagal: ' + e.message);
+  }
+}
+
+function disconnectWallet() {
+  if (wallet.wcProvider) { try { wallet.wcProvider.disconnect(); } catch(e){} }
+  wallet = { connected: false, address: null, chainId: null, isDemo: false, provider: null, wcProvider: null };
+  updateHeader();
+  setDot('red');
+  document.getElementById('ritual-bal').style.display = 'none';
+  showScreen('connect');
+  showToast('🔌 Wallet terputus');
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function updateHeader() {
+  const wEl = document.getElementById('hdr-wallet');
+  const nEl = document.getElementById('hdr-net');
+  const mEl = document.getElementById('menu-addr');
+  const mnEl = document.getElementById('menu-net');
+  if (wallet.address) {
+    const short = wallet.address.slice(0,6)+'...'+wallet.address.slice(-4);
+    wEl.textContent = short;
+    nEl.textContent = wallet.isDemo ? 'Demo Mode' : 'Ritual Testnet';
+    mEl.textContent = short + (wallet.isDemo ? ' (Demo)' : '');
+    mnEl.textContent = wallet.isDemo ? 'Demo Mode' : 'Ritual Testnet';
+  } else {
+    wEl.textContent = '—';
+    nEl.textContent = 'Tidak terhubung';
+  }
+}
+
+function setDot(color) {
+  const dot = document.getElementById('hdr-dot');
+  dot.className = 'dot' + (color === 'red' ? ' red' : color === 'yellow' ? ' yellow' : '');
+}
+
+function resetBtn(btn, name) {
+  btn.disabled = false;
+  btn.querySelector('.wname').textContent = name;
+}
+
+function showToast(msg) {
+  const old = document.querySelector('.toast');
+  if (old) old.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+// Cek MetaMask tersedia saat load
+window.addEventListener('load', () => {
+  if (typeof window.ethereum !== 'undefined') {
+    document.getElementById('mm-status').textContent = '✓ Terdeteksi';
+    document.getElementById('mm-status').style.color = '#5DCAA5';
+  } else {
+    document.getElementById('mm-status').textContent = 'Tidak ada';
+    document.getElementById('mm-status').style.color = '#f09595';
+  }
+});
+
+// ============================================================
+// GAME DATA
+// ============================================================
+const CHARS = [
+  {id:'node',name:'Node Runner',cls:'Infernet Operator',hp:130,maxhp:130,mp:80,maxmp:80,atk:18,def:8,healPow:30,icon:'⚙️',
+   skills:[
+    {id:'s1',name:'Infernet Strike',desc:'Serangan dari infernet node',dmg:28,mpCost:15,type:'dmg'},
+    {id:'s2',name:'AI Compute',desc:'Panggil model AI — damage masif',dmg:50,mpCost:30,type:'dmg'},
+    {id:'s3',name:'Regen Node',desc:'Heal HP dan isi mana sekaligus',heal:25,manaHeal:15,mpCost:0,type:'special'},
+    {id:'s4',name:'Fork Network',desc:'Serang dua kali berturut-turut',dmg:22,mpCost:25,type:'multi'}
+  ]},
+  {id:'val',name:'Validator',cls:'Consensus Guardian',hp:170,maxhp:170,mp:60,maxmp:60,atk:22,def:16,healPow:40,icon:'🛡️',
+   skills:[
+    {id:'s1',name:'Slash TX',desc:'Hukum transaksi nakal musuh',dmg:32,mpCost:18,type:'dmg'},
+    {id:'s2',name:'Consensus Blast',desc:'Ledakan kekuatan konsensus',dmg:55,mpCost:35,type:'dmg'},
+    {id:'s3',name:'Epoch Regen',desc:'Pulih besar setiap epoch',heal:50,mpCost:20,type:'heal'},
+    {id:'s4',name:'Finality Strike',desc:'Pasti kena, tidak meleset',dmg:38,mpCost:28,type:'sure'}
+  ]},
+  {id:'mage',name:'Dev Mage',cls:'Smart Contract Caster',hp:95,maxhp:95,mp:130,maxmp:130,atk:15,def:5,healPow:20,icon:'🧙',
+   skills:[
+    {id:'s1',name:'Deploy Contract',desc:'Lempar smart contract sebagai bom',dmg:22,mpCost:10,type:'dmg'},
+    {id:'s2',name:'Reentrancy Bug',desc:'Eksploitasi celah — damage besar',dmg:65,mpCost:40,type:'dmg'},
+    {id:'s3',name:'Audit Shield',desc:'Perlindungan dari code audit',heal:18,mpCost:12,type:'heal'},
+    {id:'s4',name:'MEV Drain',desc:'Curi HP musuh, isi mana kamu',dmg:32,manaHeal:20,mpCost:18,type:'drain'}
+  ]}
+];
+
+const ENEMIES = [
+  {name:'Sybil Bot',type:'Spam Attacker',hp:85,maxhp:85,atk:13,def:4,reward:8,xp:30,icon:'🤖',moves:['Spam Flood','Bot Attack','Network Noise']},
+  {name:'Double Signer',type:'Byzantine Node',hp:120,maxhp:120,atk:19,def:9,reward:15,xp:50,icon:'⚡',moves:['Double Sign','Fork Chaos','Byzantine Strike']},
+  {name:'Rug Puller',type:'Malicious DEX',hp:155,maxhp:155,atk:26,def:13,reward:25,xp:80,icon:'💸',moves:['Liquidity Drain','Exit Scam','Rug Pull!']},
+  {name:'51% Attacker',type:'Chain Threat',hp:210,maxhp:210,atk:33,def:19,reward:40,xp:120,icon:'💀',moves:['Reorg Attack','Double Spend','Chain Takeover']},
+  {name:'Flash Loan Bot',type:'DeFi Predator',hp:140,maxhp:140,atk:29,def:7,reward:20,xp:70,icon:'🌊',moves:['Flash Loan','Arbitrage Strike','Price Manipulation']}
+];
+
+let S = {char:null,enemy:null,ritualBal:100,block:100234,defending:false,isPlayerTurn:true,busy:false,selectedChar:0};
+
+function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function fakeTx(){return '0x'+Array.from({length:16},()=>rnd(0,15).toString(16)).join('')+'...';}
+function fakeBlock(){S.block+=rnd(1,5);return '#'+S.block;}
+
+function renderCharList(){
+  document.getElementById('char-list').innerHTML=CHARS.map((c,i)=>`
+    <div class="char-card ${i===0?'selected':''}" id="cc${i}" onclick="selectChar(${i})">
+      <div class="char-icon-box">${c.icon}</div>
+      <div style="flex:1"><div class="char-name">${c.name}</div><div class="char-meta">${c.cls} · HP ${c.hp} · ATK ${c.atk} · DEF ${c.def}</div></div>
+      ${i===0?'<span class="sel-badge">Dipilih</span>':''}
+    </div>`).join('');
+  S.selectedChar=0;
+}
+
+function selectChar(i){
+  S.selectedChar=i;
+  CHARS.forEach((_,idx)=>{const el=document.getElementById('cc'+idx);el.className='char-card'+(idx===i?' selected':'');const b=el.querySelector('.sel-badge');if(b)b.remove();});
+  const badge=document.createElement('span');badge.className='sel-badge';badge.textContent='Dipilih';
+  document.getElementById('cc'+i).appendChild(badge);
+}
+
+function startGame(){
+  const c=JSON.parse(JSON.stringify(CHARS[S.selectedChar]));
+  c.xp=0;c.level=1;c.xpNext=100;
+  S.char=c;S.defending=false;S.isPlayerTurn=true;S.busy=false;
+  document.getElementById('battle-log').innerHTML='';
+  pickEnemy();renderBattle();showScreen('battle');setTurnUI(true);
+  addLog('⚔️ Pertarungan dimulai di Ritual Testnet!','sys');
+  addLog('Musuh muncul: '+S.enemy.icon+' '+S.enemy.name,'sys');
+  addLog('Giliran kamu — pilih aksi!','sys');
+}
+
+function pickEnemy(){
+  const lvl=S.char?S.char.level:1;
+  const e=JSON.parse(JSON.stringify(ENEMIES[rnd(0,ENEMIES.length-1)]));
+  if(lvl>1){e.hp=Math.floor(e.hp*(1+(lvl-1)*0.25));e.maxhp=e.hp;e.atk=Math.floor(e.atk*(1+(lvl-1)*0.12));}
+  S.enemy=e;
+}
+
+function renderBattle(){
+  const p=S.char,e=S.enemy;
+  document.getElementById('p-name').textContent=p.name;
+  document.getElementById('p-class').textContent=p.cls;
+  document.getElementById('e-icon').textContent=e.icon;
+  document.getElementById('e-name').textContent=e.name;
+  document.getElementById('e-type').textContent=e.type;
+  document.getElementById('e-reward').textContent='Reward: +'+e.reward+' RITUAL · +'+e.xp+' XP';
+  document.getElementById('heal-amt').textContent=p.healPow;
+  updateBars();renderSkills();
+}
+
+function updateBars(){
+  const p=S.char,e=S.enemy;
+  document.getElementById('p-hp-txt').textContent=p.hp+'/'+p.maxhp;
+  document.getElementById('p-hp-bar').style.width=(Math.max(0,p.hp)/p.maxhp*100)+'%';
+  document.getElementById('p-mp-txt').textContent=p.mp+'/'+p.maxmp;
+  document.getElementById('p-mp-bar').style.width=(p.mp/p.maxmp*100)+'%';
+  document.getElementById('p-level').textContent=p.level;
+  document.getElementById('p-xp-txt').textContent=p.xp+'/'+p.xpNext;
+  document.getElementById('p-xp-bar').style.width=Math.min(100,p.xp/p.xpNext*100)+'%';
+  document.getElementById('e-hp-txt').textContent=Math.max(0,e.hp)+'/'+e.maxhp;
+  document.getElementById('e-hp-bar').style.width=(Math.max(0,e.hp)/e.maxhp*100)+'%';
+  document.getElementById('def-badge').style.display=S.defending?'block':'none';
+}
+
+function renderSkills(){
+  const p=S.char;
+  document.getElementById('skill-list').innerHTML=p.skills.map(s=>`
+    <button class="skill-btn" onclick="useSkill('${s.id}')" ${!S.isPlayerTurn||S.busy||p.mp<s.mpCost?'disabled':''}>
+      <div class="sk-name">${s.name}</div><div class="sk-desc">${s.desc}</div>
+      <div class="sk-cost">${s.mpCost>0?'Mana: '+s.mpCost:'Gratis'}</div>
+    </button>`).join('');
+}
+
+function setButtonsDisabled(v){
+  ['btn-atk','btn-def','btn-heal','btn-flee'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=v;});
+}
+
+function setTurnUI(isPlayer){
+  S.isPlayerTurn=isPlayer;
+  const banner=document.getElementById('turn-banner');
+  document.getElementById('turn-text').textContent=isPlayer?'Giliran kamu — pilih aksi!':S.enemy.name+' sedang menyerang...';
+  banner.className='turn-banner '+(isPlayer?'player-turn':'enemy-turn');
+  setButtonsDisabled(!isPlayer);
+  if(isPlayer&&S.char&&S.char.mp<20)document.getElementById('btn-heal').disabled=true;
+  renderSkills();
+}
+
+function addLog(msg,type){
+  const el=document.getElementById('battle-log');
+  const d=document.createElement('div');
+  d.className='log-line log-'+(type||'');
+  d.textContent='› '+msg;
+  el.appendChild(d);el.scrollTop=el.scrollHeight;
+}
+
+function shakeEl(id){
+  const el=document.getElementById(id);if(!el)return;
+  el.classList.remove('shake');void el.offsetWidth;
+  el.classList.add('shake');setTimeout(()=>el.classList.remove('shake'),400);
+}
+
+function endPlayerTurn(){S.busy=false;setTurnUI(false);setTimeout(enemyTurn,800);}
+
+function doAction(type){
+  if(!S.isPlayerTurn||S.busy)return;
+  S.busy=true;setButtonsDisabled(true);
+  const p=S.char,e=S.enemy;
+  if(type==='attack'){
+    let dmg=Math.max(1,p.atk-e.def+rnd(-4,6));const crit=rnd(1,10)>8;if(crit)dmg=Math.floor(dmg*1.6);
+    e.hp=Math.max(0,e.hp-dmg);addLog('⚔️ Serang: -'+dmg+' HP musuh'+(crit?' ⚡ CRITICAL!':''),'hit');shakeEl('e-icon');updateBars();
+    if(e.hp<=0){setTimeout(victory,300);return;}setTimeout(endPlayerTurn,400);
+  }else if(type==='defend'){
+    S.defending=true;addLog('🛡️ Bertahan — damage -60% giliran ini!','def');updateBars();setTimeout(endPlayerTurn,400);
+  }else if(type==='heal'){
+    if(p.mp<20){S.busy=false;setTurnUI(true);return;}
+    p.mp=Math.max(0,p.mp-20);const h=p.healPow+rnd(0,8);p.hp=Math.min(p.maxhp,p.hp+h);
+    addLog('💊 Heal: +'+h+' HP pulih','heal');updateBars();setTimeout(endPlayerTurn,400);
+  }
+}
+
+function useSkill(id){
+  if(!S.isPlayerTurn||S.busy)return;
+  const p=S.char,e=S.enemy;const s=p.skills.find(x=>x.id===id);
+  if(!s||p.mp<s.mpCost)return;
+  S.busy=true;setButtonsDisabled(true);p.mp=Math.max(0,p.mp-s.mpCost);
+  if(s.type==='dmg'){let d=s.dmg+rnd(-5,10);const c=rnd(1,10)>9;if(c)d=Math.floor(d*1.5);e.hp=Math.max(0,e.hp-d);addLog('⚡ '+s.name+': -'+d+' HP'+(c?' CRITICAL!':''),'hit');shakeEl('e-icon');}
+  else if(s.type==='heal'){const h=s.heal+rnd(0,6);p.hp=Math.min(p.maxhp,p.hp+h);addLog('💚 '+s.name+': +'+h+' HP','heal');}
+  else if(s.type==='multi'){let d1=s.dmg+rnd(-3,6),d2=s.dmg+rnd(-3,6);e.hp=Math.max(0,e.hp-d1-d2);addLog('⚡ '+s.name+': -'+d1+' dan -'+d2+' HP','hit');shakeEl('e-icon');}
+  else if(s.type==='sure'){e.hp=Math.max(0,e.hp-s.dmg);addLog('🎯 '+s.name+': -'+s.dmg+' HP (pasti kena!)','hit');shakeEl('e-icon');}
+  else if(s.type==='drain'){let d=s.dmg+rnd(-5,6);const mg=s.manaHeal||0;e.hp=Math.max(0,e.hp-d);p.mp=Math.min(p.maxmp,p.mp+mg);addLog('🌀 '+s.name+': -'+d+' HP, +'+mg+' Mana','hit');shakeEl('e-icon');}
+  else if(s.type==='special'){const h=s.heal+rnd(0,5);const mg=s.manaHeal||0;p.hp=Math.min(p.maxhp,p.hp+h);p.mp=Math.min(p.maxmp,p.mp+mg);addLog('✨ '+s.name+': +'+h+' HP, +'+mg+' Mana','heal');}
+  updateBars();
+  if(e.hp<=0){setTimeout(victory,300);return;}
+  setTimeout(endPlayerTurn,400);
+}
+
+function enemyTurn(){
+  const e=S.enemy,p=S.char;
+  const move=e.moves[rnd(0,e.moves.length-1)];
+  const t=rnd(1,10);const defR=S.defending?0.6:0;
+  let dmg;
+  if(t>=9){dmg=Math.max(1,Math.floor((e.atk+rnd(5,12))*1.5*(1-defR))-p.def);addLog('💥 '+e.name+' "'+move+'" — CRITICAL! -'+dmg+' HP','dmg');}
+  else if(t<=2){dmg=Math.max(1,Math.floor(e.atk*0.5*(1-defR))-p.def+rnd(0,2));addLog('😤 '+e.name+' "'+move+'" (lemah): -'+dmg+' HP','enemy');}
+  else{dmg=Math.max(1,Math.floor((e.atk+rnd(-3,4))*(1-defR))-p.def);addLog('🗡️ '+e.name+' "'+move+'": -'+dmg+' HP','dmg');}
+  p.hp=Math.max(0,p.hp-dmg);shakeEl('player-card');
+  if(S.defending){S.defending=false;addLog('🛡️ Pertahanan selesai','sys');}
+  if(e.hp<e.maxhp*0.3&&rnd(1,4)===1){const eh=rnd(10,22);e.hp=Math.min(e.maxhp,e.hp+eh);addLog('🔄 '+e.name+' pulih '+eh+' HP!','enemy');}
+  updateBars();
+  if(p.hp<=0){setTimeout(()=>showScreen('dead'),500);return;}
+  setTimeout(()=>{addLog('── Giliran kamu ──','sys');S.busy=false;setTurnUI(true);},600);
+}
+
+function confirmFlee(){
+  if(!S.isPlayerTurn||S.busy)return;
+  if(!confirm('Kabur? Bayar 5 RITUAL gas fee.'))return;
+  S.ritualBal=Math.max(0,S.ritualBal-5);document.getElementById('ritual-bal').textContent=S.ritualBal+' RITUAL';
+  S.defending=false;S.busy=false;pickEnemy();renderBattle();
+  document.getElementById('battle-log').innerHTML='';setTurnUI(true);
+  addLog('🏃 Kabur! Musuh baru: '+S.enemy.icon+' '+S.enemy.name,'sys');
+}
+
+function victory(){
+  const e=S.enemy,p=S.char;S.ritualBal+=e.reward;p.xp+=e.xp;
+  document.getElementById('ritual-bal').textContent=S.ritualBal+' RITUAL';
+  let lu=false;
+  while(p.xp>=p.xpNext){p.xp-=p.xpNext;p.level++;p.xpNext=Math.floor(p.xpNext*1.4);p.maxhp=Math.floor(p.maxhp*1.1);p.hp=p.maxhp;p.maxmp=Math.floor(p.maxmp*1.1);p.mp=p.maxmp;p.atk+=3;p.def+=2;p.healPow+=5;lu=true;}
+  document.getElementById('vic-msg').textContent=e.name+' dikalahkan!'+(lu?' 🎉 Level '+p.level+'!':'');
+  document.getElementById('vic-ritual').textContent='+'+e.reward+' RITUAL';
+  document.getElementById('vic-xp').textContent='+'+e.xp+' XP';
+  document.getElementById('vic-wallet').textContent=wallet.address?wallet.address.slice(0,6)+'...'+wallet.address.slice(-4):'—';
+  document.getElementById('vic-tx').textContent=fakeTx();
+  document.getElementById('vic-block').textContent=fakeBlock();
+  showScreen('victory');
+}
+
+function nextBattle(){
+  S.defending=false;S.busy=false;pickEnemy();renderBattle();showScreen('battle');
+  document.getElementById('battle-log').innerHTML='';setTurnUI(true);
+  addLog('⚔️ Battle baru! Musuh: '+S.enemy.icon+' '+S.enemy.name,'sys');addLog('Giliran kamu!','sys');
+}
+
+function revive(){
+  if(S.ritualBal<10){alert('RITUAL tidak cukup!');return;}
+  S.ritualBal-=10;document.getElementById('ritual-bal').textContent=S.ritualBal+' RITUAL';
+  S.char.hp=Math.floor(S.char.maxhp*0.5);S.char.mp=Math.floor(S.char.maxmp*0.5);
+  S.defending=false;S.busy=false;updateBars();showScreen('battle');setTurnUI(true);
+  addLog('💊 Revive! HP & Mana 50% pulih','heal');
+}
+
+function goMenu(){S.char=null;S.enemy=null;S.busy=false;S.defending=false;document.getElementById('battle-log').innerHTML='';showScreen('menu');}
+
+function switchTab(name,el){
+  ['skills','log'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'':'none');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');
+}
+
+renderCharList();
+</script>
+</body>
+</html>
 
