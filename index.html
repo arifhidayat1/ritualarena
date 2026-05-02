@@ -1258,7 +1258,20 @@ async function submitScoreOnChain() {
     statusEl.textContent = '⏳ Mengirim transaksi ke Ritual Chain...';
     btn.innerHTML = '<span class="spinner"></span>Mengirim...';
 
-    // Kirim transaksi — cast tipe eksplisit agar tidak revert
+    // ---- FIX: fetch gasPrice dari RPC lalu set manual ----
+    // Ritual Chain kadang meleset saat MetaMask auto-estimasi gas
+    let overrides = { gasLimit: 300000 };
+    try {
+      const feeData = await provider.getFeeData();
+      // Pakai gasPrice dari chain, minimal 1 gwei supaya tidak 0
+      const minGas = ethers.utils.parseUnits('1', 'gwei');
+      const chainGas = feeData.gasPrice || feeData.maxFeePerGas || minGas;
+      overrides.gasPrice = chainGas.lt(minGas) ? minGas : chainGas;
+    } catch(_) {
+      overrides.gasPrice = ethers.utils.parseUnits('1', 'gwei');
+    }
+
+    // Cast tipe eksplisit agar tidak revert di Solidity
     const scoreBN  = ethers.BigNumber.from(Math.floor(score));
     const xpBN     = ethers.BigNumber.from(Math.floor(S.totalXP));
     const winsBN   = ethers.BigNumber.from(Math.floor(totalWins));
@@ -1271,7 +1284,7 @@ async function submitScoreOnChain() {
       winsBN,
       levelU8,
       charName,
-      { gasLimit: 300000 }
+      overrides
     );
 
     statusEl.textContent = '⏳ Menunggu konfirmasi block...';
