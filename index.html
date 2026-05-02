@@ -500,67 +500,86 @@ let wcURIValue = '';
 // ============================================================
 // METAMASK
 // ============================================================
+// ============================================================
+// HELPER: cari provider yang tepat
+// ============================================================
+function getProvider(preferRabby = false) {
+  // Kalau ada window.ethereum.providers (multi-wallet aktif bersamaan)
+  if (window.ethereum && window.ethereum.providers && window.ethereum.providers.length) {
+    const providers = window.ethereum.providers;
+    if (preferRabby) {
+      const rabby = providers.find(p => p.isRabby);
+      if (rabby) return rabby;
+    } else {
+      const mm = providers.find(p => p.isMetaMask && !p.isRabby);
+      if (mm) return mm;
+    }
+    return providers[0];
+  }
+  // Single provider
+  if (preferRabby && window.rabby) return window.rabby;
+  return window.ethereum || null;
+}
+
+async function connectWithProvider(provider, btnId, btnLabel) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = true;
+  btn.querySelector('.wname').innerHTML = '<span class="spinner"></span>Menghubungkan...';
+  try {
+    const accounts = await provider.request({ method: 'eth_requestAccounts' });
+    if (!accounts || !accounts.length) {
+      showToast('❌ Tidak ada akun dipilih');
+      resetBtn(btn, btnLabel); return;
+    }
+    wallet.address = accounts[0];
+    wallet.connected = true;
+    wallet.isDemo = false;
+    wallet.provider = provider;
+    wallet.chainId = await provider.request({ method: 'eth_chainId' });
+    resetBtn(btn, btnLabel);
+
+    // Listen events
+    provider.on('accountsChanged', (a) => {
+      if (!a.length) { disconnectWallet(); return; }
+      wallet.address = a[0]; updateHeader(); showToast('🔄 Akun berganti');
+    });
+    provider.on('chainChanged', (id) => {
+      wallet.chainId = id; updateHeader();
+      if (id.toLowerCase() !== RITUAL_CHAIN_ID.toLowerCase()) {
+        showScreen('wrongnet'); setDot('yellow'); showToast('⚠️ Jaringan berubah!');
+      } else { showScreen('menu'); setDot('green'); showToast('✅ Kembali ke Ritual Testnet'); }
+    });
+
+    onConnected();
+  } catch (e) {
+    resetBtn(btn, btnLabel);
+    if (e.code === 4001) showToast('❌ Ditolak pengguna');
+    else { console.error(e); showToast('❌ Error: ' + (e.message || 'Unknown')); }
+  }
+}
+
 async function connectMetaMask() {
-  if (typeof window.ethereum === 'undefined') {
+  const provider = getProvider(false);
+  if (!provider) {
     showToast('❌ MetaMask tidak ditemukan! Install dulu.');
     setTimeout(() => window.open('https://metamask.io/download/', '_blank'), 1200);
     return;
   }
-  const btn = document.getElementById('btn-metamask');
-  btn.disabled = true;
-  btn.querySelector('.wname').innerHTML = '<span class="spinner"></span>Menghubungkan...';
-  try {
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-    if (!accounts.length) { showToast('❌ Tidak ada akun dipilih'); resetBtn(btn, 'MetaMask'); return; }
-    wallet.address = accounts[0];
-    wallet.connected = true;
-    wallet.isDemo = false;
-    wallet.provider = window.ethereum;
-    wallet.chainId = await window.ethereum.request({ method: 'eth_chainId' });
-    resetBtn(btn, 'MetaMask');
-    onConnected();
-  } catch (e) {
-    resetBtn(btn, 'MetaMask');
-    if (e.code === 4001) showToast('❌ Ditolak pengguna');
-    else showToast('❌ Error: ' + e.message);
-  }
+  await connectWithProvider(provider, 'btn-metamask', 'MetaMask');
 }
 
 // ============================================================
 // RABBY WALLET
 // ============================================================
 async function connectRabby() {
-  // Rabby menggunakan window.ethereum seperti MetaMask
-  // tapi inject property isRabby = true
-  const provider = window.rabby || window.ethereum;
-  if (typeof provider === 'undefined') {
+  // Rabby bisa ada di window.rabby, atau window.ethereum.providers, atau window.ethereum dengan isRabby
+  const provider = getProvider(true);
+  if (!provider) {
     showToast('❌ Rabby Wallet tidak ditemukan! Install dulu.');
     setTimeout(() => window.open('https://rabby.io/', '_blank'), 1200);
     return;
   }
-  // Cek apakah ini benar-benar Rabby
-  const isRabby = provider.isRabby || (window.rabby !== undefined);
-  if (!isRabby && provider.isMetaMask) {
-    showToast('⚠️ Terdeteksi MetaMask, bukan Rabby. Pastikan Rabby aktif.');
-  }
-  const btn = document.getElementById('btn-rabby');
-  btn.disabled = true;
-  btn.querySelector('.wname').innerHTML = '<span class="spinner"></span>Menghubungkan...';
-  try {
-    const accounts = await provider.request({ method: 'eth_requestAccounts' });
-    if (!accounts.length) { showToast('❌ Tidak ada akun dipilih'); resetBtn(btn, 'Rabby Wallet'); return; }
-    wallet.address = accounts[0];
-    wallet.connected = true;
-    wallet.isDemo = false;
-    wallet.provider = provider;
-    wallet.chainId = await provider.request({ method: 'eth_chainId' });
-    resetBtn(btn, 'Rabby Wallet');
-    onConnected();
-  } catch (e) {
-    resetBtn(btn, 'Rabby Wallet');
-    if (e.code === 4001) showToast('❌ Ditolak pengguna');
-    else showToast('❌ Error: ' + e.message);
-  }
+  await connectWithProvider(provider, 'btn-rabby', 'Rabby Wallet');
 }
 
 
@@ -690,6 +709,7 @@ function connectDemo() {
   wallet.connected = true;
   wallet.isDemo = true;
   wallet.chainId = RITUAL_CHAIN_ID;
+  wallet.provider = null;
   showToast('🎮 Mode Demo aktif!');
   onConnected();
 }
@@ -699,45 +719,36 @@ function connectDemo() {
 // ============================================================
 function onConnected() {
   updateHeader();
-  const isCorrectNet = wallet.isDemo || wallet.chainId === RITUAL_CHAIN_ID;
+  // Case-insensitive compare
+  const isCorrectNet = wallet.isDemo || (wallet.chainId && wallet.chainId.toLowerCase() === RITUAL_CHAIN_ID.toLowerCase());
   if (!isCorrectNet) {
     showScreen('wrongnet');
     setDot('yellow');
-    showToast('⚠️ Ganti ke Ritual Testnet!');
+    showToast('⚠️ Ganti ke Ritual Testnet! (Chain: ' + wallet.chainId + ')');
   } else {
     showScreen('menu');
     setDot('green');
     document.getElementById('ritual-bal').style.display = 'block';
     showToast('✅ Wallet terhubung!' + (wallet.isDemo ? ' (Demo)' : ''));
   }
-  // Setup MetaMask listeners
-  if (window.ethereum && !wallet.isDemo && !wallet.wcProvider) {
-    window.ethereum.on('accountsChanged', (a) => {
-      if (!a.length) { disconnectWallet(); return; }
-      wallet.address = a[0]; updateHeader(); showToast('🔄 Akun berganti');
-    });
-    window.ethereum.on('chainChanged', (id) => {
-      wallet.chainId = id; updateHeader();
-      if (id !== RITUAL_CHAIN_ID) { showScreen('wrongnet'); setDot('yellow'); showToast('⚠️ Jaringan berubah!'); }
-      else { showScreen('menu'); setDot('green'); showToast('✅ Kembali ke Ritual Testnet'); }
-    });
-  }
 }
 
 async function addRitualNetwork() {
-  if (wallet.isDemo || typeof window.ethereum === 'undefined') {
-    showToast('⚠️ Perlu MetaMask untuk menambah network');
+  const provider = wallet.provider || getProvider(false);
+  if (wallet.isDemo || !provider) {
+    showToast('⚠️ Perlu wallet untuk menambah network');
     return;
   }
   try {
-    await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [RITUAL_CHAIN_PARAMS] });
+    await provider.request({ method: 'wallet_addEthereumChain', params: [RITUAL_CHAIN_PARAMS] });
     showToast('✅ Ritual Testnet ditambahkan!');
-    wallet.chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    wallet.chainId = await provider.request({ method: 'eth_chainId' });
     onConnected();
   } catch (e) {
     showToast('❌ Gagal: ' + e.message);
   }
 }
+
 
 function disconnectWallet() {
   if (wallet.wcProvider) { try { wallet.wcProvider.disconnect(); } catch(e){} }
@@ -794,25 +805,25 @@ function showScreen(id) {
   document.getElementById('screen-' + id).classList.add('active');
 }
 
-// Cek wallet tersedia saat load
+// Cek wallet tersedia saat load — delay 600ms biar extension sempat inject
 window.addEventListener('load', () => {
-  // MetaMask
-  if (typeof window.ethereum !== 'undefined' && !window.ethereum.isRabby) {
-    document.getElementById('mm-status').textContent = '✓ Terdeteksi';
-    document.getElementById('mm-status').style.color = '#5DCAA5';
-  } else {
-    document.getElementById('mm-status').textContent = 'Tidak ada';
-    document.getElementById('mm-status').style.color = '#f09595';
-  }
-  // Rabby
-  const rabbyEl = document.getElementById('rabby-status');
-  if (window.rabby || (window.ethereum && window.ethereum.isRabby)) {
-    rabbyEl.textContent = '✓ Terdeteksi';
-    rabbyEl.style.color = '#5DCAA5';
-  } else {
-    rabbyEl.textContent = 'Tidak ada';
-    rabbyEl.style.color = '#f09595';
-  }
+  setTimeout(() => {
+    const allProviders = (window.ethereum && window.ethereum.providers) || [];
+    const hasRabby = !!window.rabby
+      || !!(window.ethereum && window.ethereum.isRabby)
+      || allProviders.some(p => p.isRabby);
+    const hasMM = !!(window.ethereum && window.ethereum.isMetaMask && !window.ethereum.isRabby)
+      || allProviders.some(p => p.isMetaMask && !p.isRabby)
+      || (!hasRabby && !!window.ethereum); // fallback: ada ethereum tapi bukan Rabby
+
+    const mmEl = document.getElementById('mm-status');
+    mmEl.textContent = hasMM ? '✓ Terdeteksi' : 'Tidak ada';
+    mmEl.style.color = hasMM ? '#5DCAA5' : '#f09595';
+
+    const rabbyEl = document.getElementById('rabby-status');
+    rabbyEl.textContent = hasRabby ? '✓ Terdeteksi' : 'Tidak ada';
+    rabbyEl.style.color = hasRabby ? '#5DCAA5' : '#f09595';
+  }, 600);
   loadLeaderboard();
 });
 
