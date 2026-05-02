@@ -266,10 +266,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0e17;color:#fffff
     <div class="net-info">
       <div style="font-size:11px;font-weight:600;color:#a8a0d0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Detail Ritual Testnet</div>
       <div class="net-row"><span>Network Name</span><span class="net-val">Ritual Testnet</span></div>
-      <div class="net-row"><span>Chain ID</span><span class="net-val">1337</span></div>
-      <div class="net-row"><span>RPC URL</span><span class="net-val">testnet.rpc.ritual.net</span></div>
-      <div class="net-row"><span>Symbol</span><span class="net-val">RITUAL</span></div>
-      <div class="net-row"><span>Explorer</span><span class="net-val">explorer.testnet.ritual.net</span></div>
+      <div class="net-row"><span>Chain ID</span><span class="net-val">1979</span></div>
+      <div class="net-row"><span>RPC URL</span><span class="net-val">rpc.ritualfoundation.org</span></div>
+      <div class="net-row"><span>Symbol</span><span class="net-val">RITUAL (18 decimals)</span></div>
+      <div class="net-row"><span>Block Time</span><span class="net-val">~350ms</span></div>
+      <div class="net-row"><span>Explorer</span><span class="net-val">explorer.ritualfoundation.org</span></div>
     </div>
     <div class="btn-row" style="justify-content:center">
       <button class="btn btn-primary" onclick="addRitualNetwork()">➕ Tambah Network Otomatis</button>
@@ -400,13 +401,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0e17;color:#fffff
 // ============================================================
 // RITUAL CHAIN CONFIG
 // ============================================================
-const RITUAL_CHAIN_ID = '0x539'; // 1337
+const RITUAL_CHAIN_ID = '0x7C3'; // 1979
 const RITUAL_CHAIN_PARAMS = {
   chainId: RITUAL_CHAIN_ID,
   chainName: 'Ritual Testnet',
   nativeCurrency: { name: 'RITUAL', symbol: 'RITUAL', decimals: 18 },
-  rpcUrls: ['https://testnet.rpc.ritual.net'],
-  blockExplorerUrls: ['https://explorer.testnet.ritual.net']
+  rpcUrls: ['https://rpc.ritualfoundation.org'],
+  blockExplorerUrls: ['https://explorer.ritualfoundation.org']
 };
 
 // WalletConnect Project ID — ganti dengan project ID kamu dari cloud.walletconnect.com
@@ -467,7 +468,7 @@ async function connectWalletConnect() {
 
     const wcProvider = await EthProvider.init({
       projectId: WC_PROJECT_ID,
-      chains: [1337],
+      chains: [1979],
       optionalChains: [1, 137, 56],
       showQrModal: false, // kita buat QR sendiri
       metadata: {
@@ -929,4 +930,3 @@ renderCharList();
 </script>
 </body>
 </html>
-
