@@ -1089,7 +1089,7 @@ renderCharList();
 // ============================================================
 // Contract Address — deploy RitualArenaScore.sol ke Ritual Testnet dulu
 // Setelah deploy, ganti CONTRACT_ADDRESS dengan address hasil deploy kamu
-const CONTRACT_ADDRESS = '0x870E828e86b1726aE8A50732D4e43a354D503B54'; // Ritual Testnet - deployed
+const CONTRACT_ADDRESS = '0x870E828e86b1726aE8A50732D4e43a354D503B54'; // Ritual Testnet
 
 // ABI minimal untuk fungsi submitScore dan getLeaderboard
 const CONTRACT_ABI = [
@@ -1258,13 +1258,20 @@ async function submitScoreOnChain() {
     statusEl.textContent = '⏳ Mengirim transaksi ke Ritual Chain...';
     btn.innerHTML = '<span class="spinner"></span>Mengirim...';
 
-    // Kirim transaksi — panggil submitScore di contract
+    // Kirim transaksi — cast tipe eksplisit agar tidak revert
+    const scoreBN  = ethers.BigNumber.from(Math.floor(score));
+    const xpBN     = ethers.BigNumber.from(Math.floor(S.totalXP));
+    const winsBN   = ethers.BigNumber.from(Math.floor(totalWins));
+    const levelU8  = Math.min(255, Math.max(1, Math.floor(p.level)));
+    const charName = String(p.name).slice(0, 32);
+
     const tx = await contract.submitScore(
-      score,
-      S.totalXP,
-      totalWins,
-      p.level,
-      p.name
+      scoreBN,
+      xpBN,
+      winsBN,
+      levelU8,
+      charName,
+      { gasLimit: 300000 }
     );
 
     statusEl.textContent = '⏳ Menunggu konfirmasi block...';
