@@ -146,6 +146,7 @@ body{font-family:var(--pixel);color:var(--text);background:#000;image-rendering:
   background:rgba(0,0,10,0.6);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:20px;
+  gap:0;
 }
 #screen-event .overlay,
 #screen-event-victory .overlay{
@@ -659,6 +660,27 @@ body{font-family:var(--pixel);color:var(--text);background:#000;image-rendering:
 <!-- ===== SCREEN: MENU ===== -->
 <div id="screen-menu" class="screen bg-menu">
   <div class="overlay">
+
+    <!-- TOP: COLLAB EVENT BANNER (exclusive, full width) -->
+    <div id="event-banner" style="display:none;width:100%;max-width:520px;cursor:pointer;margin-bottom:16px" onclick="enterEventArena()">
+      <div id="event-banner-inner" style="border:2px solid #ff4040;background:linear-gradient(135deg,rgba(40,0,0,0.95),rgba(100,0,0,0.6));padding:18px 20px;position:relative;overflow:hidden;box-shadow:0 0 30px rgba(255,40,40,0.3)">
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(45deg,transparent,transparent 12px,rgba(255,255,255,0.015) 12px,rgba(255,255,255,0.015) 24px)"></div>
+        <div style="position:relative">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+            <span style="font-size:10px;background:#ff4040;color:#fff;font-family:var(--pixel);padding:3px 8px;letter-spacing:1px">🔥 LIVE EVENT</span>
+            <span id="event-banner-players" style="font-family:var(--vt);font-size:12px;color:#ff6060"></span>
+          </div>
+          <div id="event-banner-name" style="font-family:var(--pixel);font-size:12px;color:#fff;letter-spacing:2px;text-shadow:0 0 20px #ff4040,0 0 40px #ff2020;margin-bottom:6px">COLLAB EVENT</div>
+          <div id="event-banner-desc" style="font-family:var(--vt);font-size:14px;color:#ffaaaa;margin-bottom:12px">NFT holders only - compete for the top rank!</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="font-family:var(--vt);font-size:12px;color:#ff6060">🎖 Exclusive NFT Holder Access</div>
+            <div style="font-family:var(--pixel);font-size:7px;color:#fff;background:rgba(255,40,40,0.4);border:1px solid #ff4040;padding:6px 14px;animation:vsPulse 1s ease-in-out infinite">ENTER ▶</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM: CHARACTER SELECT -->
     <div class="menu-panel">
       <div class="menu-title-bar">— SELECT CHARACTER —</div>
       <div class="status-pill">
@@ -666,22 +688,6 @@ body{font-family:var(--pixel);color:var(--text);background:#000;image-rendering:
         <span id="menu-addr">—</span>
         <span style="margin-left:auto;font-family:var(--vt);font-size:14px;color:#6060a0" id="menu-net">Ritual Testnet</span>
         <button onclick="openDiscModal()" style="background:rgba(150,30,30,0.4);border:1px solid rgba(200,50,50,0.5);color:#ff8080;padding:3px 10px;font-size:6px;cursor:pointer;font-family:var(--pixel);margin-left:8px;transition:all 0.15s" onmouseover="this.style.background='rgba(200,50,50,0.6)'" onmouseout="this.style.background='rgba(150,30,30,0.4)'">⏻ Disconnect</button>
-      </div>
-
-      <!-- EVENT BANNER -->
-      <div id="event-banner" style="display:none;cursor:pointer;margin-bottom:10px" onclick="enterEventArena()">
-        <div id="event-banner-inner" style="border:2px solid #ff4040;background:linear-gradient(135deg,rgba(255,40,40,0.15),rgba(100,0,0,0.3));padding:10px 14px;position:relative;overflow:hidden">
-          <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(255,255,255,0.02) 10px,rgba(255,255,255,0.02) 20px)"></div>
-          <div style="display:flex;align-items:center;gap:10px;position:relative">
-            <div style="font-size:24px;animation:vsPulse 1.5s ease-in-out infinite">⚔️</div>
-            <div style="flex:1">
-              <div id="event-banner-name" style="font-family:var(--pixel);font-size:8px;color:#ff6060;letter-spacing:1px;text-shadow:0 0 10px #ff4040">COLLAB EVENT</div>
-              <div id="event-banner-desc" style="font-family:var(--vt);font-size:12px;color:#ff9090;margin-top:2px">NFT holders only — tap to enter!</div>
-              <div id="event-banner-players" style="font-family:var(--vt);font-size:11px;color:#6060a0;margin-top:2px"></div>
-            </div>
-            <div style="font-family:var(--pixel);font-size:6px;color:#ff6060;background:rgba(255,40,40,0.2);border:1px solid #ff4040;padding:4px 8px;animation:vsPulse 1s ease-in-out infinite">ENTER ▶</div>
-          </div>
-        </div>
       </div>
 
       <div id="char-list"></div>
@@ -696,6 +702,7 @@ body{font-family:var(--pixel);color:var(--text);background:#000;image-rendering:
         <button class="px-btn px-btn-blue px-btn-sm" onclick="loadLeaderboard();document.getElementById('btn-back-vic').style.display='none';showScreen('leaderboard')">🏅 Ranking</button>
       </div>
     </div>
+
   </div>
 </div>
 
