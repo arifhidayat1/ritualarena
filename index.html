@@ -699,6 +699,9 @@ body{font-family:var(--pixel);color:var(--text);background:#000;image-rendering:
       <div class="menu-title-bar" id="event-arena-title" style="color:#ff6060">⚔️ COLLAB EVENT</div>
       <div id="event-arena-desc" style="font-family:var(--vt);font-size:13px;color:#8080b0;text-align:center;margin-bottom:10px"></div>
 
+      <!-- NFT Character info -->
+      <div id="event-nft-info" style="display:none;margin-bottom:8px"></div>
+
       <!-- Event leaderboard -->
       <div style="font-size:6px;color:#ff6060;letter-spacing:1px;margin-bottom:6px;border-bottom:1px solid rgba(255,60,60,0.3);padding-bottom:4px">── EVENT RANKING ──</div>
       <div id="event-lb-list" style="max-height:260px;overflow-y:auto;margin-bottom:10px">
@@ -2275,44 +2278,81 @@ let eventScore = 0;
 let eventBestScore = 0;
 let inEventMode = false;
 
+// Local event config — show banner even without contract
+const LOCAL_EVENT = {
+  active: true,
+  name: 'Collab Event Season 1',
+  description: 'NFT holders only — compete for the top rank!',
+  bannerColor: '#ff4040',
+};
+
 async function loadEventInfo(){
-  if(!EVENT_CONTRACT_ADDRESS || !wallet.address || wallet.isDemo) return;
-  try {
-    const provider = new ethers.providers.Web3Provider(wallet.provider);
-    const contract = new ethers.Contract(EVENT_CONTRACT_ADDRESS, EVENT_ABI, provider);
-    const info = await contract.getEventInfo();
-    eventInfo = {
-      active: info[0], name: info[1], description: info[2],
-      bannerColor: info[3], startTime: Number(info[4]),
-      endTime: Number(info[5]), totalPlayers: Number(info[6])
-    };
-    const banner = document.getElementById('event-banner');
-    if(banner && eventInfo.active){
-      banner.style.display='block';
-      document.getElementById('event-banner-name').textContent='⚔️ '+eventInfo.name.toUpperCase();
-      document.getElementById('event-banner-desc').textContent=eventInfo.description;
-      document.getElementById('event-banner-players').textContent=eventInfo.totalPlayers+' players competing';
-      document.getElementById('event-banner-inner').style.borderColor=eventInfo.bannerColor||'#ff4040';
-    } else if(banner){
-      banner.style.display='none';
-    }
-  } catch(err){ console.log('Event load:', err.message); }
+  // Always show banner if LOCAL_EVENT.active
+  const banner = document.getElementById('event-banner');
+  if(!banner) return;
+
+  let info = LOCAL_EVENT;
+
+  // Try to fetch from contract if available
+  if(EVENT_CONTRACT_ADDRESS && wallet.address && !wallet.isDemo){
+    try {
+      const provider = new ethers.providers.Web3Provider(wallet.provider);
+      const contract = new ethers.Contract(EVENT_CONTRACT_ADDRESS, EVENT_ABI, provider);
+      const res = await contract.getEventInfo();
+      if(res[0]){ // active
+        info = { active:res[0], name:res[1], description:res[2], bannerColor:res[3],
+                 startTime:Number(res[4]), endTime:Number(res[5]), totalPlayers:Number(res[6]) };
+        document.getElementById('event-banner-players').textContent=info.totalPlayers+' players competing';
+      }
+    } catch(err){ console.log('Event contract not ready, using local config'); }
+  }
+
+  if(info.active){
+    banner.style.display='block';
+    document.getElementById('event-banner-name').textContent='⚔️ '+info.name.toUpperCase();
+    document.getElementById('event-banner-desc').textContent=info.description;
+    document.getElementById('event-banner-inner').style.borderColor=info.bannerColor||'#ff4040';
+    eventInfo = info;
+  } else {
+    banner.style.display='none';
+  }
 }
 
 async function enterEventArena(){
-  // Check NFT
   if(!wallet.address || wallet.isDemo){ showToast('❌ Connect a real wallet first!'); return; }
-  if(!EVENT_CONTRACT_ADDRESS){ showToast('⚠️ Event contract not deployed yet!'); return; }
+
+  // Check NFT
   try {
     const provider = new ethers.providers.Web3Provider(wallet.provider);
-    const nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, provider);
-    const hasNFT = await nftContract.hasCharacter(wallet.address);
-    if(!hasNFT){ showToast('❌ You need an NFT character to enter the event!'); return; }
+    const nftContract2 = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, provider);
+    const hasNFT = await nftContract2.hasCharacter(wallet.address);
+    if(!hasNFT){
+      showToast('❌ You need an NFT character to enter the event!');
+      return;
+    }
   } catch(e){ showToast('❌ Could not verify NFT: '+e.message); return; }
 
-  // Load event screen
+  // Load event screen info
   document.getElementById('event-arena-title').textContent='⚔️ '+(eventInfo?.name||'COLLAB EVENT');
   document.getElementById('event-arena-desc').textContent=eventInfo?.description||'NFT holders only — compete for the top rank!';
+
+  // Show NFT character in event lobby
+  const saved = loadCustomChars();
+  const nftChar = saved.find(c=>c.isNFT);
+  const nftInfoEl = document.getElementById('event-nft-info');
+  if(nftInfoEl && nftChar){
+    nftInfoEl.style.display='block';
+    nftInfoEl.innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px;background:rgba(255,40,40,0.08);border:1px solid rgba(255,60,60,0.3);padding:10px;margin-bottom:8px">
+        <img src="${nftChar.avatarUrl||''}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;border:2px solid #ff4040" onerror="this.style.display='none'">
+        <div>
+          <div style="font-family:var(--pixel);font-size:7px;color:#ff8080">@${nftChar.username}</div>
+          <div style="font-family:var(--vt);font-size:12px;color:#a0a0d0">${nftChar.cls} · HP ${nftChar.hp} · ATK ${nftChar.atk} · DEF ${nftChar.def}</div>
+          <div style="font-size:6px;background:#a855f7;color:#fff;padding:2px 6px;font-family:var(--pixel);display:inline-block;margin-top:2px">NFT ✓</div>
+        </div>
+      </div>`;
+  }
+
   await loadEventLeaderboard();
   await loadMyEventScore();
   showScreen('event');
@@ -2947,6 +2987,11 @@ document.addEventListener('click', function startMusic(){
   }
   document.removeEventListener('click', startMusic);
 }, {once:true});
+
+// Init
+renderCharList();
+renderCustomCharList();
+loadEventInfo(); // Show banner immediately
 
 </script>
 </body>
