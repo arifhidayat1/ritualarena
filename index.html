@@ -52,7 +52,7 @@ body{font-family:var(--pixel);color:var(--text);background:#000;image-rendering:
 }
 
 /* ===== SCREENS ===== */
-.screen{display:none}
+.screen{display:none;width:100%;min-height:100vh}
 .screen.active{display:block}
 
 /* ===== HUD HEADER (battle only) ===== */
@@ -144,6 +144,13 @@ body{font-family:var(--pixel);color:var(--text);background:#000;image-rendering:
 #screen-menu .overlay{
   min-height:100vh;
   background:rgba(0,0,10,0.6);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px;
+}
+#screen-event .overlay,
+#screen-event-victory .overlay{
+  min-height:100vh;
+  background:rgba(10,0,0,0.7);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:20px;
 }
