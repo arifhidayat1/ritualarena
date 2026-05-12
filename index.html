@@ -2264,10 +2264,10 @@ function startGame(){
 // ============================================================
 // COLLAB EVENT ARENA
 // ============================================================
-const EVENT_CONTRACT_ADDRESS = ''; // Fill after deploy
+const EVENT_CONTRACT_ADDRESS = '0x2d39CAfD15Fe97DC7d1a5a53BBdd832Cd938e4A3';
 const EVENT_ABI = [
   'function getEventInfo() external view returns (bool active, string name, string description, string bannerColor, uint256 startTime, uint256 endTime, uint256 totalPlayers)',
-  'function submitScore(uint256 score, uint256 wave) external',
+  'function submitScore(uint256 score, uint256 wave, string username, string avatarUrl, string charName) external',
   'function getLeaderboard(uint256 limit) external view returns (tuple(address player, string username, string avatarUrl, string charName, uint256 score, uint256 wave, uint256 timestamp)[])',
   'function getMyScore() external view returns (tuple(address player, string username, string avatarUrl, string charName, uint256 score, uint256 wave, uint256 timestamp))',
 ];
@@ -2506,7 +2506,12 @@ async function submitEventScore(){
     const provider=new ethers.providers.Web3Provider(wallet.provider);
     const signer=provider.getSigner();
     const contract=new ethers.Contract(EVENT_CONTRACT_ADDRESS,EVENT_ABI,signer);
-    const tx=await contract.submitScore(eventScore, S.wave);
+    const saved = loadCustomChars();
+    const nftChar = saved.find(c=>c.isNFT);
+    const tx=await contract.submitScore(
+      eventScore, S.wave,
+      nftChar?.username||'', nftChar?.avatarUrl||'', nftChar?.name||''
+    );
     statusEl.innerHTML='<span class="spinner"></span> Confirming...';
     await tx.wait();
     eventBestScore=eventScore;
