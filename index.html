@@ -1438,8 +1438,34 @@ window.addEventListener('load', () => {
     if(mmEl){mmEl.textContent = hasMM ? '✓' : '✗'; mmEl.style.color = hasMM ? '#5DCAA5' : '#f09595';}
     const rabbyEl = document.getElementById('rabby-status');
     if(rabbyEl){rabbyEl.textContent = hasRabby ? '✓' : '✗'; rabbyEl.style.color = hasRabby ? '#5DCAA5' : '#f09595';}
+
+    // Auto-reconnect on refresh if not intentionally disconnected
+    if(sessionStorage.getItem('wallet_disconnected') !== '1' && window.ethereum){
+      window.ethereum.request({ method: 'eth_accounts' }).then(accounts => {
+        if(accounts && accounts.length > 0){
+          wallet.address = accounts[0];
+          wallet.connected = true;
+          wallet.isDemo = false;
+          wallet.provider = window.ethereum;
+          window.ethereum.request({ method: 'eth_chainId' }).then(chainId => {
+            wallet.chainId = chainId;
+            onConnected();
+          }).catch(()=>{});
+          // Listen for account/chain changes
+          window.ethereum.on('accountsChanged', (a) => {
+            if(!a.length){ disconnectWallet(); return; }
+            wallet.address = a[0]; updateHeader(); showToast('🔄 Account changed');
+          });
+          window.ethereum.on('chainChanged', (id) => {
+            wallet.chainId = id; updateHeader();
+            if(id.toLowerCase() !== RITUAL_CHAIN_ID.toLowerCase()){
+              showScreen('wrongnet'); setDot('yellow');
+            } else { showScreen('menu'); setDot('green'); }
+          });
+        }
+      }).catch(()=>{});
+    }
   }, 600);
-  // Only load leaderboard if element exists
   if(document.getElementById('lb-list')) loadLeaderboard();
 });
 
