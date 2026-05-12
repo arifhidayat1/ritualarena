@@ -692,7 +692,7 @@ body{font-family:var(--pixel);color:var(--text);background:#000;image-rendering:
       </div>
       <div class="btn-row" style="margin-top:14px">
         <button class="px-btn px-btn-gold" onclick="startGame()">▶ START BATTLE</button>
-        <button class="px-btn px-btn-blue px-btn-sm" onclick="openCustomModal()">✨ Create Character</button>
+        <button id="btn-create-char" class="px-btn px-btn-blue px-btn-sm" onclick="openCustomModal()">✨ Create Character</button>
         <button class="px-btn px-btn-blue px-btn-sm" onclick="loadLeaderboard();document.getElementById('btn-back-vic').style.display='none';showScreen('leaderboard')">🏅 Ranking</button>
       </div>
     </div>
@@ -2071,6 +2071,9 @@ async function mintCharacterNFT(){
     showToast('🎖 NFT minted! Character saved on-chain!');
     document.getElementById('gen-status').textContent='🎖 NFT minted on Ritual Chain!';
     btn.textContent='✅ Minted!';
+    // Hide Create Character button
+    var btnCreate = document.getElementById('btn-create-char');
+    if(btnCreate) btnCreate.style.display='none';
   } catch(err){
     if(err.message&&err.message.includes('Already have')) showToast('❌ Wallet already has a character NFT!');
     else showToast('❌ Mint failed: '+(err.reason||err.message));
@@ -2122,6 +2125,9 @@ async function loadNFTCharacter(){
     localStorage.setItem(key,JSON.stringify(saved));
     renderCustomCharList();
     showToast('🎖 NFT character loaded: @'+data.username);
+    // Hide Create Character button — already have NFT
+    var btnCreate = document.getElementById('btn-create-char');
+    if(btnCreate) btnCreate.style.display='none';
   } catch(err){ console.error('NFT load:',err.message); }
 }
 
@@ -2207,10 +2213,14 @@ function loadCustomChars(){
 
 function deleteCustomChar(username){
   const key='customChars_'+(wallet.address||'demo');
-  localStorage.setItem(key, JSON.stringify(loadCustomChars().filter(c=>c.username!==username)));
+  const remaining=loadCustomChars().filter(c=>c.username!==username);
+  localStorage.setItem(key, JSON.stringify(remaining));
   if(typeof S.selectedChar==='string' && S.selectedChar==='custom_'+username) S.selectedChar=0;
   renderCustomCharList();
   showToast('🗑️ Character deleted');
+  const hasNFT=remaining.some(c=>c.isNFT);
+  var btnCreate=document.getElementById('btn-create-char');
+  if(btnCreate) btnCreate.style.display=hasNFT?'none':'';
 }
 
 function renderCustomCharList(){
