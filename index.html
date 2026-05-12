@@ -1311,6 +1311,7 @@ function onConnected() {
     showToast('✅ Wallet connected!' + (wallet.isDemo ? ' (Demo)' : ''));
     renderCustomCharList();
     clearOldNFTData();
+    updateCreateCharButton();
     loadNFTCharacter();
     loadPvpEnemyPool();
     loadEventInfo();
@@ -1902,7 +1903,7 @@ function doFlee(){
   addLog('🏃 Kabur! Wave reset. New enemy: '+S.enemy.icon+' '+S.enemy.name,'sys');
 }
 
-function goMenu(){S.char=null;S.enemy=null;S.busy=false;S.defending=false;S.wave=1;var bl=document.getElementById('battle-log'); if(bl) bl.innerHTML='';showScreen('menu');}
+function goMenu(){S.char=null;S.enemy=null;S.busy=false;S.defending=false;S.wave=1;var bl=document.getElementById('battle-log'); if(bl) bl.innerHTML='';showScreen('menu');renderCustomCharList();updateCreateCharButton();}
 
 function getBestScore(){
   const key = 'bestScore_'+(wallet.address||'demo').toLowerCase();
@@ -2081,6 +2082,13 @@ async function mintCharacterNFT(){
   }
 }
 
+function updateCreateCharButton(){
+  const saved = loadCustomChars();
+  const hasNFT = saved.some(c=>c.isNFT);
+  var btnCreate = document.getElementById('btn-create-char');
+  if(btnCreate) btnCreate.style.display = hasNFT ? 'none' : '';
+}
+
 function clearOldNFTData(){
   // Remove NFT characters from localStorage that came from old contracts
   // Keep only non-NFT custom chars
@@ -2125,7 +2133,6 @@ async function loadNFTCharacter(){
     localStorage.setItem(key,JSON.stringify(saved));
     renderCustomCharList();
     showToast('🎖 NFT character loaded: @'+data.username);
-    // Hide Create Character button — already have NFT
     var btnCreate = document.getElementById('btn-create-char');
     if(btnCreate) btnCreate.style.display='none';
   } catch(err){ console.error('NFT load:',err.message); }
@@ -2218,9 +2225,7 @@ function deleteCustomChar(username){
   if(typeof S.selectedChar==='string' && S.selectedChar==='custom_'+username) S.selectedChar=0;
   renderCustomCharList();
   showToast('🗑️ Character deleted');
-  const hasNFT=remaining.some(c=>c.isNFT);
-  var btnCreate=document.getElementById('btn-create-char');
-  if(btnCreate) btnCreate.style.display=hasNFT?'none':'';
+  updateCreateCharButton();
 }
 
 function renderCustomCharList(){
