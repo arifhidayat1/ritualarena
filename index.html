@@ -663,18 +663,21 @@ body{font-family:var(--pixel);color:var(--text);background:#000;image-rendering:
 
     <!-- TOP: COLLAB EVENT BANNER (exclusive, full width) -->
     <div id="event-banner" style="display:none;width:100%;max-width:520px;cursor:pointer;margin-bottom:16px" onclick="enterEventArena()">
-      <div id="event-banner-inner" style="border:2px solid #ff4040;background:linear-gradient(135deg,rgba(40,0,0,0.95),rgba(100,0,0,0.6));padding:18px 20px;position:relative;overflow:hidden;box-shadow:0 0 30px rgba(255,40,40,0.3)">
-        <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(45deg,transparent,transparent 12px,rgba(255,255,255,0.015) 12px,rgba(255,255,255,0.015) 24px)"></div>
+      <div id="event-banner-inner" style="border:2px solid #ff4040;background:linear-gradient(135deg,rgba(40,0,0,0.95),rgba(100,0,0,0.6));padding:18px 20px;position:relative;overflow:hidden;box-shadow:0 0 30px rgba(255,40,40,0.3);background-image:url('https://raw.githubusercontent.com/arifhidayat1/ritualarena1/main/bg_event.webp');background-size:cover;background-position:center">
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
         <div style="position:relative">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
             <span style="font-size:10px;background:#ff4040;color:#fff;font-family:var(--pixel);padding:3px 8px;letter-spacing:1px">🔥 LIVE EVENT</span>
-            <span id="event-banner-players" style="font-family:var(--vt);font-size:12px;color:#ff6060"></span>
+            <span id="event-banner-players" style="font-family:var(--vt);font-size:12px;color:#ffaaaa"></span>
           </div>
           <div id="event-banner-name" style="font-family:var(--pixel);font-size:12px;color:#fff;letter-spacing:2px;text-shadow:0 0 20px #ff4040,0 0 40px #ff2020;margin-bottom:6px">COLLAB EVENT</div>
-          <div id="event-banner-desc" style="font-family:var(--vt);font-size:14px;color:#ffaaaa;margin-bottom:12px">NFT holders only - compete for the top rank!</div>
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div style="font-family:var(--vt);font-size:12px;color:#ff6060">🎖 Exclusive NFT Holder Access</div>
-            <div style="font-family:var(--pixel);font-size:7px;color:#fff;background:rgba(255,40,40,0.4);border:1px solid #ff4040;padding:6px 14px;animation:vsPulse 1s ease-in-out infinite">ENTER ▶</div>
+          <div id="event-banner-desc" style="font-family:var(--vt);font-size:14px;color:#ffaaaa;margin-bottom:10px">NFT holders only - compete for the top rank!</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <!-- Countdown -->
+            <div id="event-countdown" style="font-family:var(--pixel);font-size:7px;color:#ffd700;background:rgba(0,0,0,0.6);border:1px solid rgba(255,215,0,0.4);padding:4px 10px;letter-spacing:1px">
+              ⏱ --D --H --M --S
+            </div>
+            <div style="font-family:var(--pixel);font-size:7px;color:#fff;background:rgba(255,40,40,0.5);border:1px solid #ff4040;padding:6px 14px;animation:vsPulse 1s ease-in-out infinite">ENTER ▶</div>
           </div>
         </div>
       </div>
@@ -2341,6 +2344,33 @@ const LOCAL_EVENT = {
   bannerColor: '#ff4040',
 };
 
+// EVENT COUNTDOWN TIMER
+let countdownInterval = null;
+
+function startEventCountdown(endTime){
+  if(countdownInterval) clearInterval(countdownInterval);
+  const el = document.getElementById('event-countdown');
+  if(!el) return;
+
+  function update(){
+    const now = Math.floor(Date.now()/1000);
+    const diff = endTime - now;
+    if(diff <= 0){
+      el.innerHTML='⏱ EVENT ENDED';
+      el.style.color='#ff4040';
+      clearInterval(countdownInterval);
+      return;
+    }
+    const d = Math.floor(diff/86400);
+    const h = Math.floor((diff%86400)/3600);
+    const m = Math.floor((diff%3600)/60);
+    const s = diff%60;
+    el.innerHTML=`⏱ ${d}D ${String(h).padStart(2,'0')}H ${String(m).padStart(2,'0')}M ${String(s).padStart(2,'0')}S`;
+  }
+  update();
+  countdownInterval = setInterval(update, 1000);
+}
+
 async function loadEventInfo(){
   // Always show banner if LOCAL_EVENT.active
   const banner = document.getElementById('event-banner');
@@ -2358,6 +2388,8 @@ async function loadEventInfo(){
         info = { active:res[0], name:res[1], description:res[2], bannerColor:res[3],
                  startTime:Number(res[4]), endTime:Number(res[5]), totalPlayers:Number(res[6]) };
         document.getElementById('event-banner-players').textContent=info.totalPlayers+' players competing';
+        // Start countdown if endTime is set
+        if(info.endTime > 0) startEventCountdown(info.endTime);
       }
     } catch(err){ console.log('Event contract not ready, using local config'); }
   }
