@@ -1583,8 +1583,8 @@ function pickEnemy(){
 
 function renderBattle(){
   const p=S.char,e=S.enemy;
-  var pnEl=document.getElementById('p-name'); if(pnEl) pnEl.textContent=p.name;
-  var pcEl=document.getElementById('p-class'); if(pcEl) pcEl.textContent=p.cls;
+  var pnEl=document.getElementById('p-name'); if(pnEl) pnEl.textContent=p.name||p.username||'Player';
+  var pcEl=document.getElementById('p-class'); if(pcEl) pcEl.textContent=p.cls||p.charName||'NFT Fighter';
   var eiEl=document.getElementById('e-icon'); if(eiEl) eiEl.textContent=e.isPvp?'':e.icon;
   var eibEl=document.getElementById('e-icon-bottom'); if(eibEl) eibEl.textContent=e.isPvp?'':e.icon;
 
