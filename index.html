@@ -2322,7 +2322,7 @@ function startGame(){
 // ============================================================
 // COLLAB EVENT ARENA
 // ============================================================
-const EVENT_CONTRACT_ADDRESS = '0x2d39CAfD15Fe97DC7d1a5a53BBdd832Cd938e4A3';
+const EVENT_CONTRACT_ADDRESS = '0xc06D367E65Fcc8D87E4Df9Be6ff925468F63751B';
 const EVENT_ABI = [
   'function getEventInfo() external view returns (bool active, string name, string description, string bannerColor, uint256 startTime, uint256 endTime, uint256 totalPlayers)',
   'function submitScore(uint256 score, uint256 wave, string username, string avatarUrl, string charName) external',
@@ -2389,20 +2389,10 @@ async function loadEventInfo(){
                  startTime:Number(res[4]), endTime:Number(res[5]), totalPlayers:Number(res[6]) };
         document.getElementById('event-banner-players').textContent=info.totalPlayers+' players competing';
 
-        // Calculate real endTime using current real time + remaining duration
-        let endTime = 0;
-        if(info.endTime > 0 && info.startTime > 0){
-          // Ritual chain timestamp may differ — calculate duration in seconds
-          let durationSec = info.endTime - info.startTime;
-          // If timestamps are in milliseconds (13 digits), convert
-          if(info.startTime > 1e12) durationSec = Math.floor(durationSec / 1000);
-          // Use real current time + remaining duration from now
-          const nowReal = Math.floor(Date.now() / 1000);
-          endTime = nowReal + durationSec;
-        }
-
-        if(endTime > Math.floor(Date.now()/1000)){
-          startEventCountdown(endTime);
+        // Ritual Testnet timestamps are in milliseconds — convert to seconds
+        if(info.endTime > 0){
+          const endTimeSec = Math.floor(info.endTime / 1000);
+          startEventCountdown(endTimeSec);
           document.getElementById('event-countdown').style.display='block';
         } else {
           document.getElementById('event-countdown').style.display='none';
