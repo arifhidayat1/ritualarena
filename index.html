@@ -2388,11 +2388,20 @@ async function loadEventInfo(){
         info = { active:res[0], name:res[1], description:res[2], bannerColor:res[3],
                  startTime:Number(res[4]), endTime:Number(res[5]), totalPlayers:Number(res[6]) };
         document.getElementById('event-banner-players').textContent=info.totalPlayers+' players competing';
-        // Fix endTime if in milliseconds (13 digits) instead of seconds (10 digits)
-        let endTime = info.endTime;
-        if(endTime > 1e12) endTime = Math.floor(endTime / 1000);
-        // Start countdown if endTime is set
-        if(endTime > 0){
+
+        // Calculate real endTime using current real time + remaining duration
+        let endTime = 0;
+        if(info.endTime > 0 && info.startTime > 0){
+          // Ritual chain timestamp may differ — calculate duration in seconds
+          let durationSec = info.endTime - info.startTime;
+          // If timestamps are in milliseconds (13 digits), convert
+          if(info.startTime > 1e12) durationSec = Math.floor(durationSec / 1000);
+          // Use real current time + remaining duration from now
+          const nowReal = Math.floor(Date.now() / 1000);
+          endTime = nowReal + durationSec;
+        }
+
+        if(endTime > Math.floor(Date.now()/1000)){
           startEventCountdown(endTime);
           document.getElementById('event-countdown').style.display='block';
         } else {
