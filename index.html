@@ -674,7 +674,7 @@ body{font-family:var(--pixel);color:var(--text);background:#000;image-rendering:
           <div id="event-banner-desc" style="font-family:var(--vt);font-size:14px;color:#ffaaaa;margin-bottom:10px">NFT holders only - compete for the top rank!</div>
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
             <!-- Countdown -->
-            <div id="event-countdown" style="font-family:var(--pixel);font-size:7px;color:#ffd700;background:rgba(0,0,0,0.6);border:1px solid rgba(255,215,0,0.4);padding:4px 10px;letter-spacing:1px">
+            <div id="event-countdown" style="display:none;font-family:var(--pixel);font-size:7px;color:#ffd700;background:rgba(0,0,0,0.6);border:1px solid rgba(255,215,0,0.4);padding:4px 10px;letter-spacing:1px">
               ⏱ --D --H --M --S
             </div>
             <div style="font-family:var(--pixel);font-size:7px;color:#fff;background:rgba(255,40,40,0.5);border:1px solid #ff4040;padding:6px 14px;animation:vsPulse 1s ease-in-out infinite">ENTER ▶</div>
@@ -2388,8 +2388,16 @@ async function loadEventInfo(){
         info = { active:res[0], name:res[1], description:res[2], bannerColor:res[3],
                  startTime:Number(res[4]), endTime:Number(res[5]), totalPlayers:Number(res[6]) };
         document.getElementById('event-banner-players').textContent=info.totalPlayers+' players competing';
+        // Fix endTime if in milliseconds (13 digits) instead of seconds (10 digits)
+        let endTime = info.endTime;
+        if(endTime > 1e12) endTime = Math.floor(endTime / 1000);
         // Start countdown if endTime is set
-        if(info.endTime > 0) startEventCountdown(info.endTime);
+        if(endTime > 0){
+          startEventCountdown(endTime);
+          document.getElementById('event-countdown').style.display='block';
+        } else {
+          document.getElementById('event-countdown').style.display='none';
+        }
       }
     } catch(err){ console.log('Event contract not ready, using local config'); }
   }
